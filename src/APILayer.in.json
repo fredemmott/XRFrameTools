@@ -1,0 +1,14 @@
+{
+  "file_format_version": "1.0.0",
+  "api_layer": {
+    "name": "@LAYER@",
+    "library_path": ".\\$<TARGET_FILE_NAME:@TARGET@>",
+    "api_version": "1.0",
+    "implementation_version": "1",
+    "description": "https://github.com/fredemmott/XRFrameTools",
+    "functions": {
+      "xrNegotiateLoaderApiLayerInterface": "xrNegotiateLoaderApiLayerInterface"
+    },
+    "disable_environment": "DISABLE_@LAYER@"
+  }
+}
