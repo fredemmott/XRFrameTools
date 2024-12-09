@@ -7,7 +7,7 @@
 struct FramePerformanceCounters;
 
 struct FrameMetrics {
-  FrameMetrics() = delete;
+  FrameMetrics() = default;
   FrameMetrics(const FramePerformanceCounters&);
 
   // Computed by constructor
@@ -15,7 +15,4 @@ struct FrameMetrics {
   std::chrono::microseconds mAppCpu;
   std::chrono::microseconds mRuntimeCpu;
   std::chrono::microseconds mTotalCpu;
-
-  // Optionally filled in by something else
-  std::chrono::microseconds mTimeSinceLastFrame;
 };

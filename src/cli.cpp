@@ -11,24 +11,19 @@
 #include <thread>
 
 #include "FrameMetrics.hpp"
+#include "MetricsAggregator.hpp"
 #include "PerformanceCountersToDuration.hpp"
 #include "SHM.hpp"
-static auto operator-(const LARGE_INTEGER& lhs, const LARGE_INTEGER& rhs) {
-  return PerformanceCountersToDuration(lhs.QuadPart - rhs.QuadPart);
-}
 
-static void PrintFrame(
-  uint64_t frameCounter,
-  const FramePerformanceCounters& fpc) {
-  const FrameMetrics metrics(fpc);
-
+static void PrintFrame(const AggregatedFrameMetrics& afm) {
   std::println(
-    "Frame\t{}\tWait\t{}\tApp\t{}\tRuntime\t{}\tTotal\t{}",
-    frameCounter,
-    metrics.mWait,
-    metrics.mAppCpu,
-    metrics.mRuntimeCpu,
-    metrics.mTotalCpu);
+    "Wait\t{}\tApp\t{}\tRuntime\t{}\tCPU\t{}\tTotal\t{}\tFPS\t{:0.1f}",
+    afm.mWait,
+    afm.mAppCpu,
+    afm.mRuntimeCpu,
+    afm.mTotalCpu,
+    afm.mSincePreviousFrame,
+    1000000.0f / afm.mSincePreviousFrame.count());
 }
 
 int main(int argc, char** argv) {
@@ -64,12 +59,13 @@ int main(int argc, char** argv) {
   }
 
   constexpr auto OutputRatio = 10;
-  std::println(stderr, "Showing 1 out of {} frames", OutputRatio);
+  std::println(stderr, "Showing batches of {} frames", OutputRatio);
 
   constexpr auto PollRate = 5;
   constexpr auto PollInterval = std::chrono::milliseconds(1000) / PollRate;
 
   uint64_t frameCount = shm->mFrameCount;
+  MetricsAggregator aggregator;
   while (shm->GetAge() < std::chrono::seconds(1)) {
     const auto begin = std::chrono::steady_clock::now();
     if (frameCount > shm->mFrameCount) {
@@ -78,10 +74,15 @@ int main(int argc, char** argv) {
     }
     while (frameCount < shm->mFrameCount) {
       const auto index = frameCount++;
-      if (index % OutputRatio != 0) {
-        continue;
+      const auto& frame = shm->GetFramePerformanceCounters(index);
+      aggregator.Push(frame);
+
+      if (index % OutputRatio == 0) {
+        const auto metrics = aggregator.Flush();
+        if (metrics) {
+          PrintFrame(*metrics);
+        }
       }
-      PrintFrame(index, shm->mFrameMetrics.at(index % SHM::MaxFrameCount));
     }
 
     const auto end = std::chrono::steady_clock::now();

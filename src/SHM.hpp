@@ -18,6 +18,10 @@ struct SHM final {
 
   std::array<FramePerformanceCounters, MaxFrameCount> mFrameMetrics;
 
+  auto& GetFramePerformanceCounters(uint64_t index) const noexcept {
+    return mFrameMetrics.at(index % SHM::MaxFrameCount);
+  }
+
   std::chrono::microseconds GetAge() const noexcept;
 };
 // This can change, just check that 32-bit and 64-bit builds get the same value

@@ -68,6 +68,6 @@ add_xr_api_layer(
   XR_APILAYER_FREDEMMOTT_core_metrics.cpp
 )
 
-add_executable(cli cli.cpp FrameMetrics.cpp)
+add_executable(cli cli.cpp FrameMetrics.cpp MetricsAggregator.cpp)
 set_target_properties(cli PROPERTIES OUTPUT_NAME "XRFrameTools-cli")
 target_link_libraries(cli PRIVATE abi)
