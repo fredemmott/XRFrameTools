@@ -102,7 +102,7 @@ class FrameMetricsStore {
   }
 
  private:
-  static std::array<Frame, 2> mFrames;
+  static std::array<Frame, 3> mFrames;
 };
 decltype(FrameMetricsStore::mFrames) FrameMetricsStore::mFrames {};
 
