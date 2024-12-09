@@ -67,7 +67,8 @@ class FrameMetricsStore {
     if (it == mFrames.end()) [[unlikely]] {
       OutputDebugStringA(
         std::format(
-          "Couldn't find an in-progress frame with display time {}",
+          "XRFrameTools: Couldn't find an in-progress frame with display time "
+          "{}",
           displayTime)
           .c_str());
       __debugbreak();
@@ -82,7 +83,7 @@ class FrameMetricsStore {
     });
 
     if (it == mFrames.end()) [[unlikely]] {
-      OutputDebugStringA("No frames ready for wait");
+      OutputDebugStringA("XRFrameTools: No frames ready for wait");
       __debugbreak();
     }
     return *it;
@@ -95,7 +96,7 @@ class FrameMetricsStore {
     });
 
     if (it == mFrames.end()) [[unlikely]] {
-      OutputDebugStringA("No frames ready for begin");
+      OutputDebugStringA("XRFrameTools: No frames ready for begin");
       __debugbreak();
     }
     return *it;
