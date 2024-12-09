@@ -12,7 +12,7 @@ add_library(
   abi
   STATIC
   "${CMAKE_CURRENT_BINARY_DIR}/generated/include/XRFrameTools/ABIKey.hpp"
-  FrameMetrics.hpp
+  FramePerformanceCounters.hpp
   SHM.hpp
   SHM.cpp
   PerformanceCountersToDuration.cpp

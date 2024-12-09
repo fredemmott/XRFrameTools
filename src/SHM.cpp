@@ -63,7 +63,7 @@ SHMWriter::~SHMWriter() {
   InterlockedDecrement64(&shm->mWriterCount);
 }
 
-void SHMWriter::LogFrame(const FrameMetrics& metrics) const {
+void SHMWriter::LogFrame(const FramePerformanceCounters& metrics) const {
   const auto shm = MaybeGetSHM();
   if (!shm) {
     return;

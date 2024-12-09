@@ -4,7 +4,8 @@
 
 #include <Windows.h>
 
-struct FrameMetrics {
+// All values are from QueryPerformanceCounters
+struct FramePerformanceCounters {
   LARGE_INTEGER mWaitFrameStart {};
   LARGE_INTEGER mWaitFrameStop {};
   LARGE_INTEGER mBeginFrameStart {};
@@ -14,4 +15,4 @@ struct FrameMetrics {
 };
 // Increase this if you add additional members; this assertion is here to make
 // sure the struct is the same size in 32-bit and 64-bit builds
-static_assert(sizeof(FrameMetrics) == 48);
+static_assert(sizeof(FramePerformanceCounters) == 48);

@@ -14,7 +14,7 @@
 #include <format>
 #include <ranges>
 
-#include "FrameMetrics.hpp"
+#include "FramePerformanceCounters.hpp"
 #include "SHM.hpp"
 
 #define HOOKED_OPENXR_FUNCS(X) \
@@ -40,7 +40,7 @@ struct FrameActivities {
   TraceLoggingActivity<gTraceProvider> mEndFrameActivity;
 };
 
-struct Frame final : FrameMetrics, FrameActivities {
+struct Frame final : FramePerformanceCounters, FrameActivities {
   Frame() = default;
   ~Frame() = default;
 

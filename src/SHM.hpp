@@ -7,7 +7,7 @@
 #include <array>
 #include <chrono>
 
-#include "FrameMetrics.hpp"
+#include "FramePerformanceCounters.hpp"
 
 struct SHM final {
   static constexpr auto MaxFrameCount = 128;
@@ -16,7 +16,7 @@ struct SHM final {
   uint64_t mFrameCount {};
   DWORD mWriterProcessID {};
 
-  std::array<FrameMetrics, MaxFrameCount> mFrameMetrics;
+  std::array<FramePerformanceCounters, MaxFrameCount> mFrameMetrics;
 
   std::chrono::microseconds GetAge() const noexcept;
 };
@@ -45,7 +45,7 @@ class SHMWriter final : public SHMClient {
   SHMWriter();
   ~SHMWriter();
 
-  void LogFrame(const FrameMetrics& metrics) const;
+  void LogFrame(const FramePerformanceCounters& metrics) const;
 };
 
 class SHMReader final : public SHMClient {

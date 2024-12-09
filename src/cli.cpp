@@ -16,7 +16,9 @@ static auto operator-(const LARGE_INTEGER& lhs, const LARGE_INTEGER& rhs) {
   return PerformanceCountersToDuration(lhs.QuadPart - rhs.QuadPart);
 }
 
-static void PrintFrame(uint64_t frameCounter, const FrameMetrics& it) {
+static void PrintFrame(
+  uint64_t frameCounter,
+  const FramePerformanceCounters& it) {
   const auto waitCpu = it.mWaitFrameStop - it.mWaitFrameStart;
   const auto appCpu = it.mEndFrameStart - it.mEndFrameStart;
   const auto runtimeCpu = (it.mBeginFrameStop - it.mBeginFrameStart)
