@@ -3,9 +3,6 @@
 
 // clang-format off
 #include <Windows.h>
-#include <TraceLoggingProvider.h>
-#include <TraceLoggingActivity.h>
-#include <evntprov.h>
 // clang-format on
 
 #include <openxr/openxr.h>
@@ -22,25 +19,9 @@
   X(BeginFrame) \
   X(EndFrame)
 
-/* PS>
- * [System.Diagnostics.Tracing.EventSource]::new("XRFrameTools")
- * a6efd5fe-e082-5e08-69da-0a9fcdafda5f
- */
-TRACELOGGING_DEFINE_PROVIDER(
-  gTraceProvider,
-  "XRFrameTools",
-  (0xa6efd5fe, 0xe082, 0x5e08, 0x69, 0xda, 0x0a, 0x9f, 0xcd, 0xaf, 0xda, 0x5f));
-
 static SHMWriter gSHM;
 
-struct FrameActivities {
-  TraceLoggingActivity<gTraceProvider> mFrameActivity;
-  TraceLoggingActivity<gTraceProvider> mWaitFrameActivity;
-  TraceLoggingActivity<gTraceProvider> mBeginFrameActivity;
-  TraceLoggingActivity<gTraceProvider> mEndFrameActivity;
-};
-
-struct Frame final : FramePerformanceCounters, FrameActivities {
+struct Frame final : FramePerformanceCounters {
   Frame() = default;
   ~Frame() = default;
 
@@ -51,8 +32,8 @@ struct Frame final : FramePerformanceCounters, FrameActivities {
 
   uint64_t mDisplayTime {};
 
-  // The TraceLoggingActivities are non-copyable and non-moveable, so we can't
-  // just do `= {}`.
+  // Don't want to accidentally move/copy this, but do want to be able to reset
+  // it back to the initial state
   void Reset() {
     this->~Frame();
     new (this) Frame();
@@ -119,16 +100,9 @@ XrResult hooked_xrWaitFrame(
   }
   auto& frame = FrameMetricsStore::GetForWaitFrame();
 
-  TraceLoggingWriteStart(frame.mFrameActivity, "Frame");
-  TraceLoggingWriteStart(frame.mWaitFrameActivity, "xrWaitFrame");
   QueryPerformanceCounter(&frame.mWaitFrameStart);
   const auto ret = next_xrWaitFrame(session, frameWaitInfo, frameState);
   QueryPerformanceCounter(&frame.mWaitFrameStop);
-  TraceLoggingWriteStop(
-    frame.mWaitFrameActivity,
-    "xrWaitFrame",
-    TraceLoggingValue(frameState->predictedDisplayTime, "predictedDisplayTime"),
-    TraceLoggingValue(std::to_underlying(ret), "XrResult"));
 
   if (XR_SUCCEEDED(ret)) [[likely]] {
     frame.mDisplayTime = frameState->predictedDisplayTime;
@@ -149,17 +123,9 @@ XrResult hooked_xrBeginFrame(
 
   auto& frame = FrameMetricsStore::GetForBeginFrame();
 
-  TraceLoggingWriteStart(
-    frame.mBeginFrameActivity,
-    "xrBeginFrame",
-    TraceLoggingValue(frame.mDisplayTime, "displayTime"));
   QueryPerformanceCounter(&frame.mBeginFrameStart);
   const auto ret = next_xrBeginFrame(session, frameBeginInfo);
   QueryPerformanceCounter(&frame.mBeginFrameStop);
-  TraceLoggingWriteStop(
-    frame.mBeginFrameActivity,
-    "xrBeginFrame",
-    TraceLoggingValue(std::to_underlying(ret), "XrResult"));
 
   if (XR_FAILED(ret)) [[unlikely]] {
     gHaveError = true;
@@ -177,17 +143,9 @@ XrResult hooked_xrEndFrame(
   }
 
   auto& frame = FrameMetricsStore::GetForEndFrame(frameEndInfo->displayTime);
-  TraceLoggingWriteStart(
-    frame.mEndFrameActivity,
-    "EndFrame",
-    TraceLoggingValue(frameEndInfo->displayTime, "displayTime"));
   QueryPerformanceCounter(&frame.mEndFrameStart);
   const auto ret = next_xrEndFrame(session, frameEndInfo);
   QueryPerformanceCounter(&frame.mEndFrameStop);
-  TraceLoggingWriteStop(
-    frame.mEndFrameActivity,
-    "EndFrame",
-    TraceLoggingValue(std::to_underlying(ret), "XrResult"));
 
   if (XR_FAILED(ret)) [[unlikely]] {
     gHaveError = true;
