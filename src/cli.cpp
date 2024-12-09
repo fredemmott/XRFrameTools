@@ -10,6 +10,7 @@
 #include <print>
 #include <thread>
 
+#include "FrameMetrics.hpp"
 #include "PerformanceCountersToDuration.hpp"
 #include "SHM.hpp"
 static auto operator-(const LARGE_INTEGER& lhs, const LARGE_INTEGER& rhs) {
@@ -18,20 +19,16 @@ static auto operator-(const LARGE_INTEGER& lhs, const LARGE_INTEGER& rhs) {
 
 static void PrintFrame(
   uint64_t frameCounter,
-  const FramePerformanceCounters& it) {
-  const auto waitCpu = it.mWaitFrameStop - it.mWaitFrameStart;
-  const auto appCpu = it.mEndFrameStart - it.mEndFrameStart;
-  const auto runtimeCpu = (it.mBeginFrameStop - it.mBeginFrameStart)
-    + (it.mEndFrameStop - it.mEndFrameStart);
-  const auto totalCpu = it.mEndFrameStop - it.mWaitFrameStart;
+  const FramePerformanceCounters& fpc) {
+  const FrameMetrics metrics(fpc);
 
   std::println(
     "Frame\t{}\tWait\t{}\tApp\t{}\tRuntime\t{}\tTotal\t{}",
     frameCounter,
-    waitCpu,
-    appCpu,
-    runtimeCpu,
-    totalCpu);
+    metrics.mWait,
+    metrics.mAppCpu,
+    metrics.mRuntimeCpu,
+    metrics.mTotalCpu);
 }
 
 int main(int argc, char** argv) {
