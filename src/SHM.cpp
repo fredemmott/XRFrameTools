@@ -51,6 +51,7 @@ SHMWriter::SHMWriter() {
 
   if (InterlockedIncrement64(&shm->mWriterCount) == 1) {
     shm->mFrameCount = 0;
+    shm->mWriterProcessID = GetCurrentProcessId();
   }
 }
 

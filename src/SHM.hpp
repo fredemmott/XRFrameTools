@@ -14,6 +14,7 @@ struct SHM final {
   alignas(16) LONGLONG mWriterCount {};
   LARGE_INTEGER mLastUpdate {};
   uint64_t mFrameCount {};
+  DWORD mWriterProcessID {};
 
   std::array<FrameMetrics, MaxFrameCount> mFrameMetrics;
 

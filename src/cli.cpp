@@ -1,13 +1,17 @@
 // Copyright 2024 Fred Emmott <fred@fredemmott.com>
 // SPDX-License-Identifier: MIT
 
+// clang-format off
+#include <Windows.h>
+// clang-format on
+
 #include <cstdio>
+#include <filesystem>
 #include <print>
 #include <thread>
 
 #include "PerformanceCountersToDuration.hpp"
 #include "SHM.hpp"
-
 static auto operator-(const LARGE_INTEGER& lhs, const LARGE_INTEGER& rhs) {
   return PerformanceCountersToDuration(lhs.QuadPart - rhs.QuadPart);
 }
@@ -31,10 +35,27 @@ int main(int argc, char** argv) {
     return EXIT_FAILURE;
   }
 
-  if (shm->mFrameCount == 0) {
+  if (shm->GetAge() > std::chrono::seconds(1)) {
     std::println(stderr, "Waiting for data...");
     while (shm->GetAge() > std::chrono::seconds(1)) {
       std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+  }
+
+  if (wil::unique_handle writer {OpenProcess(
+        PROCESS_QUERY_LIMITED_INFORMATION, FALSE, shm->mWriterProcessID)}) {
+    char buffer[MAX_PATH];
+    DWORD length {sizeof(buffer)};
+    if (
+      QueryFullProcessImageNameA(writer.get(), 0, buffer, &length) && length) {
+      std::string_view path {buffer};
+      while (!path.back()) {
+        path.remove_suffix(1);
+      }
+      std::println(
+        stderr,
+        "OpenXR app: {}",
+        std::filesystem::canonical(std::filesystem::path {path}).string());
     }
   }
 
@@ -47,6 +68,10 @@ int main(int argc, char** argv) {
   uint64_t frameCount = shm->mFrameCount;
   while (shm->GetAge() < std::chrono::seconds(1)) {
     const auto begin = std::chrono::steady_clock::now();
+    if (frameCount > shm->mFrameCount) {
+      // Deal with process changes
+      frameCount = shm->mFrameCount;
+    }
     while (frameCount < shm->mFrameCount) {
       const auto index = frameCount++;
       if (index % OutputRatio != 0) {
