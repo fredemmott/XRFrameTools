@@ -17,14 +17,19 @@ static auto operator-(const LARGE_INTEGER& lhs, const LARGE_INTEGER& rhs) {
 }
 
 static void PrintFrame(uint64_t frameCounter, const FrameMetrics& it) {
+  const auto wait = it.mWaitFrameStop - it.mWaitFrameStart;
+  const auto app = it.mEndFrameStart - it.mEndFrameStart;
+  const auto runtime = (it.mBeginFrameStop - it.mBeginFrameStart)
+    + (it.mEndFrameStop - it.mEndFrameStart);
+  const auto total = it.mEndFrameStop - it.mWaitFrameStart;
+
   std::println(
     "Frame\t{}\tWait\t{}\tApp\t{}\tRuntime\t{}\tTotal\t{}",
     frameCounter,
-    it.mWaitFrameStop - it.mWaitFrameStart,
-    it.mEndFrameStart - it.mBeginFrameStop,
-    (it.mBeginFrameStop - it.mBeginFrameStart)
-      + (it.mEndFrameStop - it.mEndFrameStart),
-    it.mEndFrameStop - it.mWaitFrameStart);
+    wait,
+    app,
+    runtime,
+    total);
 }
 
 int main(int argc, char** argv) {
