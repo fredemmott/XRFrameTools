@@ -2,6 +2,7 @@ math(EXPR BUILD_BITNESS "${CMAKE_SIZEOF_VOID_P} * 8")
 
 find_package(wil CONFIG REQUIRED)
 find_package(magic_enum CONFIG REQUIRED)
+find_package(imgui CONFIG REQUIRED)
 
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/lib")
 
@@ -68,4 +69,27 @@ target_link_libraries(
   PerformanceCounters
   BinaryLogReader
   magic_enum::magic_enum
+)
+
+add_executable(
+  app
+  WIN32
+  GuiMain.cpp
+  Window.cpp Window.hpp
+  MainWindow.cpp MainWindow.hpp
+  utf8.manifest
+)
+set_target_properties(
+  app
+  PROPERTIES
+  OUTPUT_NAME "XRFrameTools"
+)
+target_link_libraries(
+  app
+  PRIVATE
+  imgui::imgui
+  Win32Utils
+  # System libraries
+  D3D11
+  DXGI
 )

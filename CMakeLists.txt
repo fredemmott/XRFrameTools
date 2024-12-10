@@ -10,6 +10,11 @@ add_compile_options(
   # Include content and marker in error messages
   "/diagnostics:caret"
 )
+add_compile_definitions(
+  "NOMINMAX=1"
+  "UNICODE=1"
+  "WIN32_LEAN_AND_MEAN"
+)
 
 set(
   CMAKE_TOOLCHAIN_FILE

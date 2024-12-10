@@ -13,6 +13,7 @@
 
 #include "BinaryLog.hpp"
 #include "FramePerformanceCounters.hpp"
+#include "Win32Utils.hpp"
 
 BinaryLogWriter::BinaryLogWriter() {
   mThread = std::jthread {std::bind_front(&BinaryLogWriter::Run, this)};
@@ -61,11 +62,8 @@ void BinaryLogWriter::OpenFile() {
     thisExeUtf8.erase(lastIdx + 1);
   }
 
-  wil::unique_cotaskmem_string localAppData;
-  SHGetKnownFolderPath(
-    FOLDERID_LocalAppData, KF_FLAG_DEFAULT, nullptr, localAppData.put());
   const auto now = std::chrono::system_clock::now();
-  const auto logPath = std::filesystem::path {localAppData.get()}
+  const auto logPath = GetKnownFolderPath(FOLDERID_LocalAppData)
     / L"XRFrameTools" / "Logs" / thisExe.stem()
     / std::format(L"{0} {1:%F} {1:%H-%M-%S} {1:%Z}.XRFrameToolsBinLog",
                   thisExe.stem().wstring(),
