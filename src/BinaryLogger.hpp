@@ -34,11 +34,7 @@ class BinaryLogger {
   wil::unique_handle mWakeEvent {CreateEventW(nullptr, FALSE, FALSE, nullptr)};
   std::jthread mThread;
 
-  std::vector<FramePerformanceCounters> mPending;
-  std::chrono::steady_clock::time_point mLastFlush;
-
   void OpenFile();
-  void FlushToDisk();
   void Run(std::stop_token);
   uint64_t GetProduced();
 };
