@@ -53,6 +53,14 @@ class FrameMetricsStore {
       bool canBegin {true};
       return it.mCanBegin.compare_exchange_strong(canBegin, false);
     });
+
+    if (it == mTrackedFrames.end()) {
+      auto& ret
+        = mUntrackedFrames.at(mUntrackedFrameCount++ % mTrackedFrames.size());
+      ret.Reset();
+      return ret;
+    }
+
     return *it;
   }
 
@@ -70,8 +78,8 @@ class FrameMetricsStore {
   }
 
  private:
-  static std::array<Frame, 2> mTrackedFrames;
-  static std::array<Frame, 2> mUntrackedFrames;
+  static std::array<Frame, 3> mTrackedFrames;
+  static std::array<Frame, 3> mUntrackedFrames;
   static std::atomic_uint64_t mWaitFrameCount;
   static std::atomic_uint64_t mUntrackedFrameCount;
 };
