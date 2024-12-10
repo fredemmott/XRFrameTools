@@ -17,7 +17,7 @@
 
 static void PrintFrame(const AggregatedFrameMetrics& afm) {
   std::println(
-    "Wait\t{}\tApp\t{}\tRuntime\t{}\tCPU\t{}\tTotal\t{}\tFPS\t{:0.1f}",
+    "Wait\t{}\tApp\t{}\tRuntime\t{}\tCPU\t{}\tInterval\t{}\tFPS\t{:0.1f}",
     afm.mWait,
     afm.mAppCpu,
     afm.mRuntimeCpu,
