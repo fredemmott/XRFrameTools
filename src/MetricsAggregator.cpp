@@ -48,18 +48,18 @@ std::optional<AggregatedFrameMetrics> MetricsAggregator::Flush() {
     return std::nullopt;
   }
 
-  if (mHavePartialData) {
+#define DIVIDE_METRIC(X) mAccumulator.m##X /= mAccumulator.mFrameCount;
 #define CLEAR_METRIC(X) mAccumulator.m##X = {};
+  if (mHavePartialData) {
     MEAN_METRICS(CLEAR_METRIC)
     CLEAR_METRIC(AppCpu)
-#undef CLEAR_METRIC
   } else {
-#define DIVIDE_METRIC(X) mAccumulator.m##X /= mAccumulator.mFrameCount;
     MEAN_METRICS(DIVIDE_METRIC)
-    DIVIDE_METRIC(SincePreviousFrame)
     DIVIDE_METRIC(AppCpu)
-#undef DIVIDE_METRIC
   }
+  DIVIDE_METRIC(SincePreviousFrame)
+#undef DIVIDE_METRIC
+#undef CLEAR_METRIC
   const auto ret = std::move(mAccumulator);
   mAccumulator = {};
   mHavePartialData = false;
