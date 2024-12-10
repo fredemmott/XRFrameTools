@@ -42,45 +42,12 @@ struct Frame final : FramePerformanceCounters {
 
 class FrameMetricsStore {
  public:
-  static Frame& GetForEndFrame(uint64_t displayTime) noexcept {
-    const auto it
-      = std::ranges::find(mFrames, displayTime, &Frame::mDisplayTime);
-    if (it == mFrames.end()) [[unlikely]] {
-      OutputDebugStringA(
-        std::format(
-          "XRFrameTools: Couldn't find an in-progress frame with display time "
-          "{}",
-          displayTime)
-          .c_str());
-      __debugbreak();
-    }
-
-    return *it;
-  }
-
   static Frame& GetForWaitFrame() noexcept {
-    const auto it = std::ranges::find_if(mFrames, [](const Frame& frame) {
-      return frame.mWaitFrameStart.QuadPart == 0;
-    });
-
-    if (it == mFrames.end()) [[unlikely]] {
-      OutputDebugStringA("XRFrameTools: No frames ready for wait");
-      __debugbreak();
-    }
-    return *it;
+    return mTrackedFrames.at(mWaitFrameCount++ % mTrackedFrames.size());
   }
 
   static Frame& GetForBeginFrame() noexcept {
-    const auto it = std::ranges::find_if(mFrames, [](const Frame& frame) {
-      return (frame.mWaitFrameStop.QuadPart != 0)
-        && (frame.mBeginFrameStart.QuadPart == 0);
-    });
-
-    if (it == mFrames.end()) [[unlikely]] {
-      OutputDebugStringA("XRFrameTools: No frames ready for begin");
-      __debugbreak();
-    }
-    return *it;
+    return mTrackedFrames.at(mBeginFrameCount++ % mTrackedFrames.size());
   }
 
  private:

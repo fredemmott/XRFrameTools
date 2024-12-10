@@ -11,6 +11,14 @@ static auto operator-(const LARGE_INTEGER& lhs, const LARGE_INTEGER& rhs) {
 }
 
 FrameMetrics::FrameMetrics(const FramePerformanceCounters& fpc) {
+  if (!fpc.mBeginFrameStart.QuadPart) {
+    // We couldn't match the predicted display time in xrEndFrame,
+    // so all core stats are bogus
+    //
+    // For example, this happens if OpenXR Toolkit is running turbo mode
+    // in a layer closer to the game
+    return;
+  }
   mWait = fpc.mWaitFrameStop - fpc.mWaitFrameStart;
   mAppCpu = fpc.mEndFrameStart - fpc.mBeginFrameStop;
   mRuntimeCpu = (fpc.mBeginFrameStop - fpc.mBeginFrameStart)

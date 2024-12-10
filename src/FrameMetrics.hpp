@@ -11,8 +11,8 @@ struct FrameMetrics {
   FrameMetrics(const FramePerformanceCounters&);
 
   // Computed by constructor
-  std::chrono::microseconds mWait;
-  std::chrono::microseconds mAppCpu;
-  std::chrono::microseconds mRuntimeCpu;
-  std::chrono::microseconds mTotalCpu;
+  std::chrono::microseconds mWait {};
+  std::chrono::microseconds mAppCpu {};
+  std::chrono::microseconds mRuntimeCpu {};
+  std::chrono::microseconds mTotalCpu {};
 };
