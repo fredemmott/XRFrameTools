@@ -32,14 +32,43 @@ void BinaryLogger::LogFrame(const FramePerformanceCounters& fpc) {
 void BinaryLogger::OpenFile() {
   const std::filesystem::path thisExe {wil::QueryFullProcessImageNameW().get()};
 
+  const auto thisExeToUtf8
+    = [wide = thisExe.wstring()](char* buffer, const INT bufferSize) {
+        return WideCharToMultiByte(
+          CP_UTF8,
+          WC_ERR_INVALID_CHARS,
+          wide.data(),
+          wide.size(),
+          buffer,
+          bufferSize,
+          nullptr,
+          nullptr);
+      };
+  const auto thisExeUtf8Bytes = thisExeToUtf8(nullptr, 0);
+  if (thisExeUtf8Bytes <= 0) {
+    return;
+  }
+  std::string thisExeUtf8;
+  thisExeUtf8.resize(static_cast<size_t>(thisExeUtf8Bytes), '\0');
+  if (thisExeToUtf8(thisExeUtf8.data(), thisExeUtf8.size()) <= 0) {
+    return;
+  }
+  {
+    const auto lastIdx = thisExeUtf8.find_last_not_of('\0');
+    if (lastIdx == std::string::npos) {
+      return;
+    }
+    thisExeUtf8.erase(lastIdx + 1);
+  }
+
   wil::unique_cotaskmem_string localAppData;
   SHGetKnownFolderPath(
     FOLDERID_LocalAppData, KF_FLAG_DEFAULT, nullptr, localAppData.put());
   const auto now = std::chrono::system_clock::now();
   const auto logPath = std::filesystem::path {localAppData.get()}
-    / "XRFrameTools" / thisExe.stem()
-    / std::format("{0} {1:%F} {1:%H-%M-%S} {1:%Z}.XRFrameToolsBinLog",
-                  thisExe.stem().string(),
+    / L"XRFrameTools" / thisExe.stem()
+    / std::format(L"{0} {1:%F} {1:%H-%M-%S} {1:%Z}.XRFrameToolsBinLog",
+                  thisExe.stem().wstring(),
                   now);
 
   if (!std::filesystem::exists(logPath.parent_path())) {
@@ -59,10 +88,8 @@ void BinaryLogger::OpenFile() {
   }
 
   const auto header = std::format(
-    "{}\n{}\n{}\n",
-    BinaryLog::Magic,
-    BinaryLog::GetVersionLine(),
-    thisExe.string());
+    "{}\n{}\n{}\n", BinaryLog::Magic, BinaryLog::GetVersionLine(), thisExeUtf8);
+
   WriteFile(mFile.get(), header.data(), header.size(), nullptr, nullptr);
   LARGE_INTEGER pcf {};
   QueryPerformanceFrequency(&pcf);

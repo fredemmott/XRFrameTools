@@ -22,7 +22,8 @@ namespace BinaryLog {
  * Human-Readable Header
  * ---------------------
  *
- * - The header MUST be encoded in UTF-8 without BOM
+ * - The header MUST be encoded in UTF-8 without BOM; this primarily affects
+ *   the executable path
  * - Writers SHOULD end all lines with a single LF character, not CRLF
  * - Readers MAY tolerate either LF or CRLF endings
  * - Writers MUST NOT omit the final newline
@@ -33,9 +34,6 @@ namespace BinaryLog {
  * VERSION_LINE\n
  * FULL_PATH_TO_EXECUTABLE\n
  * ```
- *
- * The final LF is then immediately followed by the binary
- * `QueryPerformanceFrequency() result
  */
 static constexpr auto Version = "2024-12-10#01";
 static constexpr auto Magic = "XRFrameTools binary log";
