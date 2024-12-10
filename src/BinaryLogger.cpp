@@ -71,8 +71,16 @@ void BinaryLogger::OpenFile() {
                   thisExe.stem().wstring(),
                   now);
 
-  if (!std::filesystem::exists(logPath.parent_path())) {
-    std::filesystem::create_directories(logPath.parent_path());
+  try {
+    if (!std::filesystem::exists(logPath.parent_path())) {
+      std::filesystem::create_directories(logPath.parent_path());
+    }
+  } catch (const std::filesystem::filesystem_error& e) {
+    OutputDebugStringA(
+      std::format(
+        "XRFrameTools: failed to create log file direction: {}", e.what())
+        .c_str());
+    return;
   }
 
   mFile.reset(CreateFileA(
