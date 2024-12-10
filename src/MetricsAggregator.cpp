@@ -26,18 +26,26 @@ void MetricsAggregator::Push(const FramePerformanceCounters& fpc) {
         = fpc.mEndFrameStop - mPreviousFrameEndTime;
     }
     mPreviousFrameEndTime = fpc.mEndFrameStop;
+    if (!fpc.mWaitFrameStart.QuadPart) {
+      mHavePartialData = true;
+    }
     return;
   }
 
   ++mAccumulator.mFrameCount;
 
-#define ADD_METRIC(X) mAccumulator.m##X += fm.m##X;
-  MEAN_METRICS(ADD_METRIC)
-#undef ADD_METRIC
-
   mAccumulator.mSincePreviousFrame
     += (fpc.mEndFrameStop - mPreviousFrameEndTime);
   mPreviousFrameEndTime = fpc.mEndFrameStop;
+
+  if (!fpc.mWaitFrameStart.QuadPart) {
+    mHavePartialData = true;
+    return;
+  }
+
+#define ADD_METRIC(X) mAccumulator.m##X += fm.m##X;
+  MEAN_METRICS(ADD_METRIC)
+#undef ADD_METRIC
 }
 
 std::optional<AggregatedFrameMetrics> MetricsAggregator::Flush() {
@@ -45,11 +53,18 @@ std::optional<AggregatedFrameMetrics> MetricsAggregator::Flush() {
     return std::nullopt;
   }
 
+  if (mHavePartialData) {
+#define CLEAR_METRIC(X) mAccumulator.m##X = {};
+    MEAN_METRICS(CLEAR_METRIC)
+#undef CLEAR_METRIC
+  } else {
 #define DIVIDE_METRIC(X) mAccumulator.m##X /= mAccumulator.mFrameCount;
-  MEAN_METRICS(DIVIDE_METRIC)
-  DIVIDE_METRIC(SincePreviousFrame)
+    MEAN_METRICS(DIVIDE_METRIC)
+    DIVIDE_METRIC(SincePreviousFrame)
 #undef DIVIDE_METRIC
+  }
   const auto ret = std::move(mAccumulator);
   mAccumulator = {};
+  mHavePartialData = false;
   return ret;
 }

@@ -20,4 +20,5 @@ class MetricsAggregator {
  private:
   AggregatedFrameMetrics mAccumulator {};
   LARGE_INTEGER mPreviousFrameEndTime {};
+  bool mHavePartialData = false;
 };
