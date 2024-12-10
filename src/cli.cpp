@@ -17,11 +17,11 @@
 
 static void PrintFrame(const AggregatedFrameMetrics& afm) {
   std::println(
-    "Wait\t{}\tApp\t{}\tRuntime\t{}\tCPU\t{}\tInterval\t{}\tFPS\t{:0.1f}",
-    afm.mWait,
+    "Wait\t{}\tApp\t{}\tRuntime\t{}\tRender\t{}\tInterval\t{}\tFPS\t{:0.1f}",
+    afm.mWaitCpu,
     afm.mAppCpu,
     afm.mRuntimeCpu,
-    afm.mTotalCpu,
+    afm.mRenderCpu,
     afm.mSincePreviousFrame,
     1000000.0f / afm.mSincePreviousFrame.count());
 }

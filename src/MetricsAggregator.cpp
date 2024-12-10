@@ -10,38 +10,33 @@ static auto operator-(const LARGE_INTEGER& lhs, const LARGE_INTEGER& rhs) {
 }
 
 #define MEAN_METRICS(OP) \
-  OP(Wait) \
-  OP(AppCpu) \
+  OP(WaitCpu) \
   OP(RuntimeCpu) \
-  OP(TotalCpu)
+  OP(RenderCpu)
 
 void MetricsAggregator::Push(const FramePerformanceCounters& fpc) {
-  const FrameMetrics fm {fpc};
-  if (mAccumulator.mFrameCount == 0) {
-    mAccumulator = {fm};
-    mAccumulator.mFrameCount = 1;
-
-    if (mPreviousFrameEndTime.QuadPart) {
-      mAccumulator.mSincePreviousFrame
-        = fpc.mEndFrameStop - mPreviousFrameEndTime;
-    }
-    mPreviousFrameEndTime = fpc.mEndFrameStop;
-    if (!fpc.mWaitFrameStart.QuadPart) {
-      mHavePartialData = true;
-    }
-    return;
-  }
-
   ++mAccumulator.mFrameCount;
-
-  mAccumulator.mSincePreviousFrame
-    += (fpc.mEndFrameStop - mPreviousFrameEndTime);
+  if (mPreviousFrameEndTime.QuadPart) {
+    mAccumulator.mSincePreviousFrame
+      += fpc.mEndFrameStop - mPreviousFrameEndTime;
+    if (fpc.mWaitFrameStart.QuadPart) {
+      mAccumulator.mAppCpu += fpc.mWaitFrameStart - mPreviousFrameEndTime;
+    }
+  }
   mPreviousFrameEndTime = fpc.mEndFrameStop;
 
   if (!fpc.mWaitFrameStart.QuadPart) {
     mHavePartialData = true;
+  }
+
+  if (mHavePartialData) {
     return;
   }
+
+  mAccumulator.mAppCpu += fpc.mBeginFrameStart - fpc.mWaitFrameStop;
+  mAccumulator.mAppCpu += fpc.mEndFrameStart - fpc.mBeginFrameStop;
+
+  const FrameMetrics fm {fpc};
 
 #define ADD_METRIC(X) mAccumulator.m##X += fm.m##X;
   MEAN_METRICS(ADD_METRIC)
@@ -56,11 +51,13 @@ std::optional<AggregatedFrameMetrics> MetricsAggregator::Flush() {
   if (mHavePartialData) {
 #define CLEAR_METRIC(X) mAccumulator.m##X = {};
     MEAN_METRICS(CLEAR_METRIC)
+    CLEAR_METRIC(AppCpu)
 #undef CLEAR_METRIC
   } else {
 #define DIVIDE_METRIC(X) mAccumulator.m##X /= mAccumulator.mFrameCount;
     MEAN_METRICS(DIVIDE_METRIC)
     DIVIDE_METRIC(SincePreviousFrame)
+    DIVIDE_METRIC(AppCpu)
 #undef DIVIDE_METRIC
   }
   const auto ret = std::move(mAccumulator);

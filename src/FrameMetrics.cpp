@@ -19,9 +19,9 @@ FrameMetrics::FrameMetrics(const FramePerformanceCounters& fpc) {
     // in a layer closer to the game
     return;
   }
-  mWait = fpc.mWaitFrameStop - fpc.mWaitFrameStart;
-  mAppCpu = fpc.mEndFrameStart - fpc.mBeginFrameStop;
+
+  mWaitCpu = fpc.mWaitFrameStop - fpc.mWaitFrameStart;
+  mRenderCpu = fpc.mEndFrameStart - fpc.mBeginFrameStop;
   mRuntimeCpu = (fpc.mBeginFrameStop - fpc.mBeginFrameStart)
     + (fpc.mEndFrameStop - fpc.mEndFrameStart);
-  mTotalCpu = fpc.mEndFrameStop - fpc.mWaitFrameStart;
 }

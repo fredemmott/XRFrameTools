@@ -9,6 +9,7 @@
 
 struct AggregatedFrameMetrics : FrameMetrics {
   uint16_t mFrameCount {};
+  std::chrono::microseconds mAppCpu;
   std::chrono::microseconds mSincePreviousFrame {};
 };
 
