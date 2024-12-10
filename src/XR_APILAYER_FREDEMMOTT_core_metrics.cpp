@@ -8,6 +8,7 @@
 #include <openxr/openxr.h>
 #include <openxr/openxr_loader_negotiation.h>
 
+#include <atomic>
 #include <format>
 #include <ranges>
 
@@ -31,6 +32,7 @@ struct Frame final : FramePerformanceCounters {
   Frame& operator=(Frame&&) = delete;
 
   uint64_t mDisplayTime {};
+  std::atomic<bool> mCanBegin {};
 
   // Don't want to accidentally move/copy this, but do want to be able to reset
   // it back to the initial state
@@ -47,7 +49,11 @@ class FrameMetricsStore {
   }
 
   static Frame& GetForBeginFrame() noexcept {
-    return mTrackedFrames.at(mBeginFrameCount++ % mTrackedFrames.size());
+    const auto it = std::ranges::find_if(mTrackedFrames, [](Frame& it) {
+      bool canBegin {true};
+      return it.mCanBegin.compare_exchange_strong(canBegin, false);
+    });
+    return *it;
   }
 
   static Frame& GetForEndFrame(uint64_t displayTime) noexcept {
@@ -67,11 +73,9 @@ class FrameMetricsStore {
   static std::array<Frame, 2> mTrackedFrames;
   static std::array<Frame, 2> mUntrackedFrames;
   static std::atomic_uint64_t mWaitFrameCount;
-  static std::atomic_uint64_t mBeginFrameCount;
   static std::atomic_uint64_t mUntrackedFrameCount;
 };
 std::atomic_uint64_t FrameMetricsStore::mWaitFrameCount {0};
-std::atomic_uint64_t FrameMetricsStore::mBeginFrameCount {0};
 std::atomic_uint64_t FrameMetricsStore::mUntrackedFrameCount {0};
 decltype(FrameMetricsStore::mTrackedFrames)
   FrameMetricsStore::mTrackedFrames {};
@@ -95,6 +99,7 @@ XrResult hooked_xrWaitFrame(
   }
 
   frame.mDisplayTime = frameState->predictedDisplayTime;
+  frame.mCanBegin.store(true);
   return ret;
 }
 
