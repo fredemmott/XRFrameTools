@@ -38,7 +38,7 @@ namespace BinaryLog {
 static constexpr auto Version = "2024-12-10#01";
 static constexpr auto Magic = "XRFrameTools binary log";
 
-inline constexpr auto GetVersionLine() noexcept {
+inline auto GetVersionLine() noexcept {
   return std::format(
     "BLv{}/FPCv{}", BinaryLog::Version, FramePerformanceCounters::Version);
 }

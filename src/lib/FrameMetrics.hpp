@@ -4,11 +4,12 @@
 
 #include <chrono>
 
+struct PerformanceCounterMath;
 struct FramePerformanceCounters;
 
 struct FrameMetrics {
   FrameMetrics() = default;
-  FrameMetrics(const FramePerformanceCounters&);
+  FrameMetrics(const PerformanceCounterMath&, const FramePerformanceCounters&);
 
   // Computed by constructor
   std::chrono::microseconds mWaitCpu {};

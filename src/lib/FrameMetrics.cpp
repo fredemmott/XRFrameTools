@@ -4,13 +4,11 @@
 #include "FrameMetrics.hpp"
 
 #include "FramePerformanceCounters.hpp"
-#include "PerformanceCountersToDuration.hpp"
+#include "PerformanceCounterMath.hpp"
 
-static auto operator-(const LARGE_INTEGER& lhs, const LARGE_INTEGER& rhs) {
-  return PerformanceCountersToDuration(lhs.QuadPart - rhs.QuadPart);
-}
-
-FrameMetrics::FrameMetrics(const FramePerformanceCounters& fpc) {
+FrameMetrics::FrameMetrics(
+  const PerformanceCounterMath& pcm,
+  const FramePerformanceCounters& fpc) {
   if (!fpc.mBeginFrameStart.QuadPart) {
     // We couldn't match the predicted display time in xrEndFrame,
     // so all core stats are bogus
@@ -20,8 +18,8 @@ FrameMetrics::FrameMetrics(const FramePerformanceCounters& fpc) {
     return;
   }
 
-  mWaitCpu = fpc.mWaitFrameStop - fpc.mWaitFrameStart;
-  mRenderCpu = fpc.mEndFrameStart - fpc.mBeginFrameStop;
-  mRuntimeCpu = (fpc.mBeginFrameStop - fpc.mBeginFrameStart)
-    + (fpc.mEndFrameStop - fpc.mEndFrameStart);
+  mWaitCpu = pcm.ToDuration(fpc.mWaitFrameStart, fpc.mWaitFrameStop);
+  mRenderCpu = pcm.ToDuration(fpc.mBeginFrameStop, fpc.mEndFrameStart);
+  mRuntimeCpu = pcm.ToDuration(fpc.mBeginFrameStart, fpc.mBeginFrameStop)
+    + pcm.ToDuration(fpc.mEndFrameStart, fpc.mEndFrameStop);
 }

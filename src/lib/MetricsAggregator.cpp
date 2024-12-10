@@ -3,24 +3,29 @@
 
 #include "MetricsAggregator.hpp"
 
-#include "PerformanceCountersToDuration.hpp"
-
-static auto operator-(const LARGE_INTEGER& lhs, const LARGE_INTEGER& rhs) {
-  return PerformanceCountersToDuration(lhs.QuadPart - rhs.QuadPart);
-}
+#include "FrameMetrics.hpp"
+#include "FramePerformanceCounters.hpp"
 
 #define MEAN_METRICS(OP) \
   OP(WaitCpu) \
   OP(RuntimeCpu) \
   OP(RenderCpu)
 
+MetricsAggregator::MetricsAggregator(const PerformanceCounterMath& pc)
+  : mPerformanceCounterMath(pc) {
+}
+
 void MetricsAggregator::Push(const FramePerformanceCounters& fpc) {
   ++mAccumulator.mFrameCount;
+
+  const auto pcm = mPerformanceCounterMath;
+
   if (mPreviousFrameEndTime.QuadPart) {
     mAccumulator.mSincePreviousFrame
-      += fpc.mEndFrameStop - mPreviousFrameEndTime;
+      += pcm.ToDuration(mPreviousFrameEndTime, fpc.mEndFrameStop);
     if (fpc.mWaitFrameStart.QuadPart) {
-      mAccumulator.mAppCpu += fpc.mWaitFrameStart - mPreviousFrameEndTime;
+      mAccumulator.mAppCpu
+        += pcm.ToDuration(mPreviousFrameEndTime, fpc.mWaitFrameStart);
     }
   }
   mPreviousFrameEndTime = fpc.mEndFrameStop;
@@ -33,10 +38,12 @@ void MetricsAggregator::Push(const FramePerformanceCounters& fpc) {
     return;
   }
 
-  mAccumulator.mAppCpu += fpc.mBeginFrameStart - fpc.mWaitFrameStop;
-  mAccumulator.mAppCpu += fpc.mEndFrameStart - fpc.mBeginFrameStop;
+  mAccumulator.mAppCpu
+    += pcm.ToDuration(fpc.mWaitFrameStop, fpc.mBeginFrameStart);
+  mAccumulator.mAppCpu
+    += pcm.ToDuration(fpc.mBeginFrameStop, fpc.mEndFrameStart);
 
-  const FrameMetrics fm {fpc};
+  const FrameMetrics fm {pcm, fpc};
 
 #define ADD_METRIC(X) mAccumulator.m##X += fm.m##X;
   MEAN_METRICS(ADD_METRIC)

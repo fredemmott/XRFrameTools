@@ -65,7 +65,7 @@ int main(int argc, char** argv) {
   constexpr auto PollInterval = std::chrono::milliseconds(1000) / PollRate;
 
   uint64_t frameCount = shm->mFrameCount;
-  MetricsAggregator aggregator;
+  MetricsAggregator aggregator(PerformanceCounterMath::CreateForLiveData());
   while (shm.GetAge() < std::chrono::seconds(1)) {
     const auto begin = std::chrono::steady_clock::now();
     if (frameCount > shm->mFrameCount) {

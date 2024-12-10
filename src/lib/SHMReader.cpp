@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 #include "SHMReader.hpp"
-#include "PerformanceCountersToDuration.hpp"
+#include "PerformanceCounterMath.hpp"
 #include "SHM.hpp"
 
 SHMReader::SHMReader() = default;
@@ -20,12 +20,14 @@ const SHM& SHMReader::GetSHM() const {
   return *shm;
 }
 
-std::chrono::microseconds SHMReader::GetAge() const noexcept {
+std::chrono::microseconds SHMReader::GetAge() const {
   const auto shm = MaybeGetSHM();
   if (!shm) [[unlikely]] {
     throw std::logic_error("Calling GetSHM() without checking IsValid()");
   }
   LARGE_INTEGER now {};
   QueryPerformanceCounter(&now);
-  return PerformanceCountersToDuration(now.QuadPart - shm->mLastUpdate.QuadPart);
+
+  static const auto pcm = PerformanceCounterMath::CreateForLiveData();
+  return pcm.ToDuration(shm->mLastUpdate, now);
 }
