@@ -15,12 +15,16 @@ class PerformanceCounterMath {
    */
   PerformanceCounterMath(LARGE_INTEGER frequency);
 
+  [[nodiscard]] inline LARGE_INTEGER GetResolution() const noexcept {
+    return mResolution;
+  }
+
   [[nodiscard]]
   inline std::chrono::microseconds ToDuration(
     const LARGE_INTEGER diff) const noexcept {
     auto duration = diff.QuadPart;
     duration *= 1000000;
-    duration /= mFrequency.QuadPart;
+    duration /= mResolution.QuadPart;
     return std::chrono::microseconds {duration};
   }
 
@@ -38,5 +42,5 @@ class PerformanceCounterMath {
   static PerformanceCounterMath CreateForLiveData();
 
  private:
-  LARGE_INTEGER mFrequency {};
+  LARGE_INTEGER mResolution {};
 };

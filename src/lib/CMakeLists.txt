@@ -7,6 +7,7 @@ configure_file(
   NEWLINE_STYLE UNIX
 )
 
+include(BinaryLogReader.cmake)
 include(BinaryLogWriter.cmake)
 include(FrameMetrics.cmake)
 include(PerformanceCounters.cmake)

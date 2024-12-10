@@ -24,8 +24,7 @@ namespace BinaryLog {
  *
  * - The header MUST be encoded in UTF-8 without BOM; this primarily affects
  *   the executable path
- * - Writers SHOULD end all lines with a single LF character, not CRLF
- * - Readers MAY tolerate either LF or CRLF endings
+ * - Writers MUST end all lines with a single LF character, not CRLF
  * - Writers MUST NOT omit the final newline
  *
  * Format:

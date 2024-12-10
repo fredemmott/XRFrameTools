@@ -6,7 +6,6 @@
 #include <wil/resource.h>
 
 #include <array>
-#include <chrono>
 #include <mutex>
 #include <thread>
 

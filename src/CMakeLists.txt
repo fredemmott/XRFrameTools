@@ -1,6 +1,7 @@
 math(EXPR BUILD_BITNESS "${CMAKE_SIZEOF_VOID_P} * 8")
 
 find_package(wil CONFIG REQUIRED)
+find_package(magic_enum CONFIG REQUIRED)
 
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/lib")
 
@@ -53,4 +54,18 @@ target_link_libraries(
   FrameMetrics
   PerformanceCounters
   SHMReader
+)
+
+add_executable(
+  binlog-to-csv
+  binlog-to-csv.cpp
+  utf8.manifest
+)
+target_link_libraries(
+  binlog-to-csv
+  PRIVATE
+  FrameMetrics
+  PerformanceCounters
+  BinaryLogReader
+  magic_enum::magic_enum
 )

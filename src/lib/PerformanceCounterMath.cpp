@@ -10,7 +10,7 @@ static LARGE_INTEGER GetPerformanceFrequency() {
 static const auto gLiveFrequency = GetPerformanceFrequency();
 
 PerformanceCounterMath::PerformanceCounterMath(LARGE_INTEGER frequency)
-  : mFrequency(frequency) {
+  : mResolution(frequency) {
 }
 
 PerformanceCounterMath PerformanceCounterMath::CreateForLiveData() {
