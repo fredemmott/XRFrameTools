@@ -12,10 +12,10 @@
 
 #include "FramePerformanceCounters.hpp"
 
-class BinaryLogger {
+class BinaryLogWriter {
  public:
-  BinaryLogger();
-  ~BinaryLogger();
+  BinaryLogWriter();
+  ~BinaryLogWriter();
 
   void LogFrame(const FramePerformanceCounters&);
 

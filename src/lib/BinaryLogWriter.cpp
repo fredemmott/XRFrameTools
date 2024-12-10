@@ -1,8 +1,6 @@
 // Copyright 2024 Fred Emmott <fred@fredemmott.com>
 // SPDX-License-Identifier: MIT
 
-#include "BinaryLogger.hpp"
-
 #include <shlobj_core.h>
 #include <wil/win32_helpers.h>
 
@@ -12,15 +10,16 @@
 #include <functional>
 
 #include "BinaryLog.hpp"
+#include "BinaryLogWriter.hpp"
 #include "FramePerformanceCounters.hpp"
 
-BinaryLogger::BinaryLogger() {
-  mThread = std::jthread {std::bind_front(&BinaryLogger::Run, this)};
+BinaryLogWriter::BinaryLogWriter() {
+  mThread = std::jthread {std::bind_front(&BinaryLogWriter::Run, this)};
 }
 
-BinaryLogger::~BinaryLogger() = default;
+BinaryLogWriter::~BinaryLogWriter() = default;
 
-void BinaryLogger::LogFrame(const FramePerformanceCounters& fpc) {
+void BinaryLogWriter::LogFrame(const FramePerformanceCounters& fpc) {
   {
     const std::unique_lock lock(mProducedMutex);
     const auto index = (mProduced++) % RingBufferSize;
@@ -29,7 +28,7 @@ void BinaryLogger::LogFrame(const FramePerformanceCounters& fpc) {
   SetEvent(mWakeEvent.get());
 }
 
-void BinaryLogger::OpenFile() {
+void BinaryLogWriter::OpenFile() {
   const std::filesystem::path thisExe {wil::QueryFullProcessImageNameW().get()};
 
   const auto thisExeToUtf8
@@ -104,14 +103,14 @@ void BinaryLogger::OpenFile() {
   WriteFile(mFile.get(), &pcf, sizeof(pcf), nullptr, nullptr);
 }
 
-uint64_t BinaryLogger::GetProduced() {
+uint64_t BinaryLogWriter::GetProduced() {
   // Not certain an uint64_t read is atomic in the 32-bit builds, so let's
   // guard the read too
   std::unique_lock lock(mProducedMutex);
   return mProduced;
 }
 
-void BinaryLogger::Run(std::stop_token tok) {
+void BinaryLogWriter::Run(std::stop_token tok) {
   SetThreadDescription(GetCurrentThread(), L"XRFrameTools Binary Logger");
   OutputDebugStringA("XRFrameTools: starting binary logger thread");
 

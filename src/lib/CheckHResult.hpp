@@ -23,7 +23,7 @@ inline void ThrowHResult(
     caller.line(),
     caller.column(),
     ec.message());
-  OutputDebugStringA(formatted.c_str());
+  OutputDebugStringA(std::format("XRFrameTool: {}", formatted).c_str());
   throw std::system_error(ec, formatted);
 }
 

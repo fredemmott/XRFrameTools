@@ -12,8 +12,8 @@
 
 #include "FrameMetrics.hpp"
 #include "MetricsAggregator.hpp"
-#include "PerformanceCountersToDuration.hpp"
 #include "SHM.hpp"
+#include "SHMReader.hpp"
 
 static void PrintFrame(const AggregatedFrameMetrics& afm) {
   std::println(
@@ -34,11 +34,11 @@ int main(int argc, char** argv) {
     return EXIT_FAILURE;
   }
 
-  if (shm->GetAge() > std::chrono::seconds(1)) {
+  if (shm.GetAge() > std::chrono::seconds(1)) {
     std::println(stderr, "Waiting for data...");
-    while (shm->GetAge() > std::chrono::seconds(1)) {
+    do {
       std::this_thread::sleep_for(std::chrono::seconds(1));
-    }
+    } while (shm.GetAge() > std::chrono::seconds(1));
   }
 
   if (wil::unique_handle writer {OpenProcess(
@@ -66,7 +66,7 @@ int main(int argc, char** argv) {
 
   uint64_t frameCount = shm->mFrameCount;
   MetricsAggregator aggregator;
-  while (shm->GetAge() < std::chrono::seconds(1)) {
+  while (shm.GetAge() < std::chrono::seconds(1)) {
     const auto begin = std::chrono::steady_clock::now();
     if (frameCount > shm->mFrameCount) {
       // Deal with process changes

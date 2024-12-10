@@ -12,9 +12,9 @@
 #include <format>
 #include <ranges>
 
-#include "BinaryLogger.hpp"
+#include "BinaryLogWriter.hpp"
 #include "FramePerformanceCounters.hpp"
-#include "SHM.hpp"
+#include "SHMWriter.hpp"
 
 #define HOOKED_OPENXR_FUNCS(X) \
   X(WaitFrame) \
@@ -22,7 +22,7 @@
   X(EndFrame)
 
 static SHMWriter gSHM;
-static BinaryLogger gBinaryLogger;
+static BinaryLogWriter gBinaryLogger;
 
 struct Frame final : FramePerformanceCounters {
   Frame() = default;

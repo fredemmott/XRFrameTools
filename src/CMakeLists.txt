@@ -2,32 +2,9 @@ math(EXPR BUILD_BITNESS "${CMAKE_SIZEOF_VOID_P} * 8")
 
 find_package(wil CONFIG REQUIRED)
 
-configure_file(
-  "${CMAKE_CURRENT_SOURCE_DIR}/gen/ABIKey.in.hpp"
-  "${CMAKE_CURRENT_BINARY_DIR}/generated/include/XRFrameTools/ABIKey.hpp"
-  @ONLY
-  NEWLINE_STYLE UNIX
-)
-add_library(
-  abi
-  STATIC
-  "${CMAKE_CURRENT_BINARY_DIR}/generated/include/XRFrameTools/ABIKey.hpp"
-  FramePerformanceCounters.hpp
-  SHM.hpp
-  SHM.cpp
-  PerformanceCountersToDuration.cpp
-  PerformanceCountersToDuration.hpp
-)
-target_link_libraries(
-  abi
-  PUBLIC
-  WIL::WIL
-)
-target_include_directories(
-  abi
-  PRIVATE
-  "${CMAKE_CURRENT_BINARY_DIR}/generated/include"
-)
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/lib")
+
+add_subdirectory(lib)
 
 macro(add_xr_api_layer_json TARGET)
   set(LAYER "XR_APILAYER_FREDEMMOTT_${TARGET}")
@@ -50,7 +27,7 @@ endmacro()
 
 macro(add_xr_api_layer TARGET)
   add_library(${TARGET} MODULE ${ARGN})
-  target_link_libraries(${TARGET} PRIVATE openxr abi)
+  target_link_libraries(${TARGET} PRIVATE openxr SHMWriter BinaryLogWriter)
   set_target_properties(
     ${TARGET}
     PROPERTIES
@@ -66,10 +43,14 @@ endmacro()
 add_xr_api_layer(
   core_metrics
   XR_APILAYER_FREDEMMOTT_core_metrics.cpp
-  BinaryLogger.cpp
-  BinaryLogger.hpp
 )
 
-add_executable(cli cli.cpp FrameMetrics.cpp MetricsAggregator.cpp)
+add_executable(cli cli.cpp)
 set_target_properties(cli PROPERTIES OUTPUT_NAME "XRFrameTools-cli")
-target_link_libraries(cli PRIVATE abi)
+target_link_libraries(
+  cli
+  PRIVATE
+  FrameMetrics
+  PerformanceCounters
+  SHMReader
+)
