@@ -1,6 +1,8 @@
 // Copyright 2024 Fred Emmott <fred@fredemmott.com>
 // SPDX-License-Identifier: MIT
 
+#include "BinaryLogWriter.hpp"
+
 #include <shlobj_core.h>
 #include <wil/win32_helpers.h>
 
@@ -10,7 +12,6 @@
 #include <functional>
 
 #include "BinaryLog.hpp"
-#include "BinaryLogWriter.hpp"
 #include "FramePerformanceCounters.hpp"
 
 BinaryLogWriter::BinaryLogWriter() {
@@ -65,7 +66,7 @@ void BinaryLogWriter::OpenFile() {
     FOLDERID_LocalAppData, KF_FLAG_DEFAULT, nullptr, localAppData.put());
   const auto now = std::chrono::system_clock::now();
   const auto logPath = std::filesystem::path {localAppData.get()}
-    / L"XRFrameTools" / thisExe.stem()
+    / L"XRFrameTools" / "Logs" / thisExe.stem()
     / std::format(L"{0} {1:%F} {1:%H-%M-%S} {1:%Z}.XRFrameToolsBinLog",
                   thisExe.stem().wstring(),
                   now);
