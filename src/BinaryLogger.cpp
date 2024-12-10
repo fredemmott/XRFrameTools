@@ -11,6 +11,7 @@
 #include <format>
 #include <functional>
 
+#include "BinaryLog.hpp"
 #include "FramePerformanceCounters.hpp"
 
 BinaryLogger::BinaryLogger() {
@@ -58,9 +59,9 @@ void BinaryLogger::OpenFile() {
   }
 
   const auto header = std::format(
-    "XRFrameTools binary log\nBLFv{}/FPCv{}\n{}\n",
-    BinaryLogger::Version,
-    FramePerformanceCounters::Version,
+    "{}\n{}\n{}\n",
+    BinaryLog::Magic,
+    BinaryLog::GetVersionLine(),
     thisExe.string());
   WriteFile(mFile.get(), header.data(), header.size(), nullptr, nullptr);
   LARGE_INTEGER pcf {};

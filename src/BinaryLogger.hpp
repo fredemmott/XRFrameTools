@@ -14,8 +14,6 @@
 
 class BinaryLogger {
  public:
-  static constexpr auto Version = "2024091201";
-
   BinaryLogger();
   ~BinaryLogger();
 
