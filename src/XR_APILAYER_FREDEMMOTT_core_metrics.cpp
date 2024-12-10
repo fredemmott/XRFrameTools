@@ -78,28 +78,23 @@ decltype(FrameMetricsStore::mTrackedFrames)
 decltype(FrameMetricsStore::mUntrackedFrames)
   FrameMetricsStore::mUntrackedFrames {};
 
-bool gHaveError = false;
-
 PFN_xrWaitFrame next_xrWaitFrame {nullptr};
 XrResult hooked_xrWaitFrame(
   XrSession session,
   const XrFrameWaitInfo* frameWaitInfo,
   XrFrameState* frameState) noexcept {
-  if (gHaveError) {
-    return next_xrWaitFrame(session, frameWaitInfo, frameState);
-  }
   auto& frame = FrameMetricsStore::GetForWaitFrame();
 
   QueryPerformanceCounter(&frame.mWaitFrameStart);
   const auto ret = next_xrWaitFrame(session, frameWaitInfo, frameState);
   QueryPerformanceCounter(&frame.mWaitFrameStop);
 
-  if (XR_SUCCEEDED(ret)) [[likely]] {
-    frame.mDisplayTime = frameState->predictedDisplayTime;
+  if (XR_FAILED(ret)) [[unlikely]] {
+    frame.Reset();
     return ret;
   }
 
-  gHaveError = true;
+  frame.mDisplayTime = frameState->predictedDisplayTime;
   return ret;
 }
 
@@ -107,10 +102,6 @@ PFN_xrBeginFrame next_xrBeginFrame {nullptr};
 XrResult hooked_xrBeginFrame(
   XrSession session,
   const XrFrameBeginInfo* frameBeginInfo) noexcept {
-  if (gHaveError) {
-    return next_xrBeginFrame(session, frameBeginInfo);
-  }
-
   auto& frame = FrameMetricsStore::GetForBeginFrame();
 
   QueryPerformanceCounter(&frame.mBeginFrameStart);
@@ -118,7 +109,7 @@ XrResult hooked_xrBeginFrame(
   QueryPerformanceCounter(&frame.mBeginFrameStop);
 
   if (XR_FAILED(ret)) [[unlikely]] {
-    gHaveError = true;
+    frame.Reset();
   }
 
   return ret;
@@ -128,20 +119,15 @@ PFN_xrEndFrame next_xrEndFrame {nullptr};
 XrResult hooked_xrEndFrame(
   XrSession session,
   const XrFrameEndInfo* frameEndInfo) noexcept {
-  if (gHaveError) {
-    return next_xrEndFrame(session, frameEndInfo);
-  }
-
   auto& frame = FrameMetricsStore::GetForEndFrame(frameEndInfo->displayTime);
   QueryPerformanceCounter(&frame.mEndFrameStart);
   const auto ret = next_xrEndFrame(session, frameEndInfo);
   QueryPerformanceCounter(&frame.mEndFrameStop);
 
-  if (XR_FAILED(ret)) [[unlikely]] {
-    gHaveError = true;
+  if (XR_SUCCEEDED(ret)) [[likely]] {
+    gSHM.LogFrame(frame);
   }
 
-  gSHM.LogFrame(frame);
   frame.Reset();
   return ret;
 }
@@ -158,7 +144,7 @@ struct XRFuncDelegator<TRet (*)(TArgs...), LayerFn, NextFn> {
       return XR_ERROR_FUNCTION_UNSUPPORTED;
     }
 
-    if (gHaveError || !gEnabled) {
+    if (!gEnabled) {
       return std::invoke(*NextFn, args...);
     }
     return std::invoke(LayerFn, args...);
