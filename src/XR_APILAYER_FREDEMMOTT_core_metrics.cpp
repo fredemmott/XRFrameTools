@@ -50,10 +50,33 @@ class FrameMetricsStore {
     return mTrackedFrames.at(mBeginFrameCount++ % mTrackedFrames.size());
   }
 
+  static Frame& GetForEndFrame(uint64_t displayTime) noexcept {
+    const auto it
+      = std::ranges::find(mTrackedFrames, displayTime, &Frame::mDisplayTime);
+    if (it == mTrackedFrames.end()) {
+      auto& ret
+        = mUntrackedFrames.at(mUntrackedFrameCount++ % mTrackedFrames.size());
+      ret.Reset();
+      return ret;
+    }
+
+    return *it;
+  }
+
  private:
-  static std::array<Frame, 3> mFrames;
+  static std::array<Frame, 2> mTrackedFrames;
+  static std::array<Frame, 2> mUntrackedFrames;
+  static std::atomic_uint64_t mWaitFrameCount;
+  static std::atomic_uint64_t mBeginFrameCount;
+  static std::atomic_uint64_t mUntrackedFrameCount;
 };
-decltype(FrameMetricsStore::mFrames) FrameMetricsStore::mFrames {};
+std::atomic_uint64_t FrameMetricsStore::mWaitFrameCount {0};
+std::atomic_uint64_t FrameMetricsStore::mBeginFrameCount {0};
+std::atomic_uint64_t FrameMetricsStore::mUntrackedFrameCount {0};
+decltype(FrameMetricsStore::mTrackedFrames)
+  FrameMetricsStore::mTrackedFrames {};
+decltype(FrameMetricsStore::mUntrackedFrames)
+  FrameMetricsStore::mUntrackedFrames {};
 
 bool gHaveError = false;
 
