@@ -12,6 +12,7 @@
 #include <format>
 #include <ranges>
 
+#include "BinaryLogger.hpp"
 #include "FramePerformanceCounters.hpp"
 #include "SHM.hpp"
 
@@ -21,6 +22,7 @@
   X(EndFrame)
 
 static SHMWriter gSHM;
+static BinaryLogger gBinaryLogger;
 
 struct Frame final : FramePerformanceCounters {
   Frame() = default;
@@ -139,6 +141,7 @@ XrResult hooked_xrEndFrame(
 
   if (XR_SUCCEEDED(ret)) [[likely]] {
     gSHM.LogFrame(frame);
+    gBinaryLogger.LogFrame(frame);
   }
 
   frame.Reset();

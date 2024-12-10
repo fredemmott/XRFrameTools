@@ -66,6 +66,8 @@ endmacro()
 add_xr_api_layer(
   core_metrics
   XR_APILAYER_FREDEMMOTT_core_metrics.cpp
+  BinaryLogger.cpp
+  BinaryLogger.hpp
 )
 
 add_executable(cli cli.cpp FrameMetrics.cpp MetricsAggregator.cpp)

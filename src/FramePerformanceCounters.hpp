@@ -6,6 +6,9 @@
 
 // All values are from QueryPerformanceCounters
 struct FramePerformanceCounters {
+  // Used for BinLog
+  static constexpr auto Version = "2024100901";
+
   LARGE_INTEGER mWaitFrameStart {};
   LARGE_INTEGER mWaitFrameStop {};
   LARGE_INTEGER mBeginFrameStart {};
