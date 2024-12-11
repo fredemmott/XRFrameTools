@@ -10,17 +10,15 @@
 #include <magic_enum.hpp>
 #include <print>
 
-#include "MetricsAggregator.hpp"
+#include "CSVWriter.hpp"
 #include "Win32Utils.hpp"
 
 namespace {
 
-constexpr size_t DefaultAggregateBatchSize = 10;
-
 struct Arguments {
   std::filesystem::path mInput;
   std::filesystem::path mOutput;
-  size_t mAggregateBatch {DefaultAggregateBatchSize};
+  size_t mAggregateBatch {CSVWriter::DefaultFramesPerRow};
 };
 
 void ShowUsage(std::FILE* stream, std::string_view exe) {
@@ -30,7 +28,7 @@ void ShowUsage(std::FILE* stream, std::string_view exe) {
     "  --aggregate COUNT\n\n"
     "    number of frames to include in each row; default {}",
     std::filesystem::path {exe}.stem().string(),
-    DefaultAggregateBatchSize);
+    CSVWriter::DefaultFramesPerRow);
 }
 
 std::optional<std::filesystem::path> ArgToInputPath(std::string_view arg) {
@@ -211,62 +209,25 @@ int main(int argc, char** argv) {
 
   const auto out
     = outputFile ? outputFile.get() : GetStdHandle(STD_OUTPUT_HANDLE);
+  const auto result
+    = CSVWriter::Write(std::move(reader).value(), out, args->mAggregateBatch);
 
-  // Include the UTF-8 Byte Order Mark as Excel and Google Sheets use it
-  // as a magic value for UTF-8
-  win32::println(
-    out,
-    "\ufeffTime (µs),Count,Wait CPU (µs),App CPU (µs),Runtime CPU (µs),Render "
-    "CPU (µs),Interval (µs),FPS");
-
-  uint64_t frameCount = 0;
-  uint64_t flushCount = 0;
-  MetricsAggregator acc {pcm};
-  std::optional<LARGE_INTEGER> firstFrameTime {};
-  LARGE_INTEGER lastFrameTime {};
-
-  while (const auto frame = reader->GetNextFrame()) {
-    if (!firstFrameTime) {
-      firstFrameTime = frame->mEndFrameStart;
-    }
-    lastFrameTime = frame->mEndFrameStart;
-
-    acc.Push(*frame);
-    if (++frameCount % args->mAggregateBatch != 0) {
-      continue;
-    }
-    const auto row = acc.Flush();
-    if (!row) {
-      continue;
-    };
-
-    win32::println(
-      out,
-      "{},{},{},{},{},{},{},{:0.1f}",
-      pcm.ToDuration(*firstFrameTime, frame->mEndFrameStart).count(),
-      row->mFrameCount,
-      row->mWaitCpu.count(),
-      row->mAppCpu.count(),
-      row->mRuntimeCpu.count(),
-      row->mRenderCpu.count(),
-      row->mSincePreviousFrame.count(),
-      1000000.0f / row->mSincePreviousFrame.count());
-    ++flushCount;
-  }
-
-  if (frameCount == 0) {
+  if (result.mFrameCount == 0) {
     std::println(stderr, "❌ log doesn't contain any frames");
     return EXIT_FAILURE;
   }
 
   std::println(
-    stderr, "✅ Wrote {} rows covering {} frames", flushCount, frameCount);
+    stderr,
+    "✅ Wrote {} rows covering {} frames",
+    result.mRowCount,
+    result.mFrameCount);
 
-  if (firstFrameTime) {
-    const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-      pcm.ToDuration(*firstFrameTime, lastFrameTime));
+  if (result.mLogDuration) {
     std::println(
-      stderr, "⏱️ {:.03f} seconds recorded in log", duration.count() / 1000.0f);
+      stderr,
+      "⏱️ {:.03f} seconds recorded in log",
+      result.mLogDuration->count() / 1000.0f);
   }
 
   const auto conversionTime

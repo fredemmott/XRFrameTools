@@ -65,7 +65,7 @@ add_executable(
 target_link_libraries(
   binlog-to-csv
   PRIVATE
-  FrameMetrics
+  CSVWriter
   PerformanceCounters
   BinaryLogReader
   magic_enum::magic_enum
@@ -88,6 +88,7 @@ target_link_libraries(
   app
   PRIVATE
   BinaryLogReader
+  CSVWriter
   # vcpkg
   imgui::imgui
   Win32Utils
