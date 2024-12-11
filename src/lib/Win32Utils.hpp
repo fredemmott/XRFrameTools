@@ -47,3 +47,10 @@ void println(
   }
 }
 }// namespace win32
+
+template <class... Args>
+void dprint(std::format_string<Args...> format, Args&&... args) {
+  const auto inner = std::format(format, std::forward<Args>(args)...);
+  const auto outer = std::format("XRFrameTools: {}\n", inner);
+  OutputDebugStringA(outer.data());
+}

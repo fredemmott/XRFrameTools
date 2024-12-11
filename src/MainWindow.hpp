@@ -6,6 +6,7 @@
 
 #include "BinaryLogReader.hpp"
 #include "CSVWriter.hpp"
+#include "Config.hpp"
 #include "Window.hpp"
 
 class MainWindow final : public Window {
@@ -19,6 +20,8 @@ class MainWindow final : public Window {
   void RenderContent() override;
 
  private:
+  Config mBaseConfig;
+
   int mCSVFramesPerRow {CSVWriter::DefaultFramesPerRow};
   std::vector<BinaryLogReader> mBinaryLogFiles;
   void PickBinaryLogFiles();

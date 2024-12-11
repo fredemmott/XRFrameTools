@@ -77,28 +77,4 @@ target_link_libraries(
   magic_enum::magic_enum
 )
 
-add_executable(
-  app
-  WIN32
-  GuiMain.cpp
-  Window.cpp Window.hpp
-  MainWindow.cpp MainWindow.hpp
-  utf8.manifest
-)
-set_target_properties(
-  app
-  PROPERTIES
-  OUTPUT_NAME "XRFrameTools"
-)
-target_link_libraries(
-  app
-  PRIVATE
-  BinaryLogReader
-  CSVWriter
-  # vcpkg
-  imgui::imgui
-  Win32Utils
-  # System libraries
-  D3D11
-  DXGI
-)
+include(app.cmake)

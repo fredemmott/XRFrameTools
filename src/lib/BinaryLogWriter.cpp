@@ -74,10 +74,7 @@ void BinaryLogWriter::OpenFile() {
       std::filesystem::create_directories(logPath.parent_path());
     }
   } catch (const std::filesystem::filesystem_error& e) {
-    OutputDebugStringA(
-      std::format(
-        "XRFrameTools: failed to create log file direction: {}", e.what())
-        .c_str());
+    dprint("failed to create log file direction: {}", e.what());
     return;
   }
 
@@ -111,7 +108,7 @@ uint64_t BinaryLogWriter::GetProduced() {
 
 void BinaryLogWriter::Run(std::stop_token tok) {
   SetThreadDescription(GetCurrentThread(), L"XRFrameTools Binary Logger");
-  OutputDebugStringA("XRFrameTools: starting binary logger thread");
+  dprint("starting binary logger thread");
 
   const std::stop_callback wakeOnStop(
     tok, std::bind_front(&SetEvent, mWakeEvent.get()));
@@ -121,9 +118,8 @@ void BinaryLogWriter::Run(std::stop_token tok) {
     return;
   }
 
-  const auto cleanup = wil::scope_exit([]() {
-    OutputDebugStringA("XRFrameTools: shutting down binary logger thread");
-  });
+  const auto cleanup
+    = wil::scope_exit([]() { dprint("shutting down binary logger thread"); });
 
   while (WaitForSingleObject(mWakeEvent.get(), INFINITE) == WAIT_OBJECT_0) {
     if (tok.stop_requested()) {

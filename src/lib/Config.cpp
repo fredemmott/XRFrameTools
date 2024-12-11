@@ -9,6 +9,8 @@
 #include <filesystem>
 #include <format>
 
+#include "Win32Utils.hpp"
+
 using namespace std::string_view_literals;
 
 namespace {
@@ -24,7 +26,27 @@ struct ConfigRegistryValue {
 };
 }// namespace
 
+template <class T>
+static void Set(
+  std::shared_mutex& mutex,
+  HKEY hkey,
+  LPCWSTR name,
+  std::optional<T>& storage,
+  const T& value) noexcept {
+  std::unique_lock lock(mutex);
+  ConfigRegistryValue<T>::Write(hkey, name, value);
+  storage.emplace(value);
+}
+
+#define DEFINE_SETTER(TYPE, NAME, DEFAULT) \
+  void Config::Set##NAME(const TYPE& value) noexcept { \
+    Set<TYPE>(mMutex, mAppKey.get(), L#NAME, mAppStorage.m##NAME, value); \
+  }
+XRFT_ITERATE_SETTINGS(DEFINE_SETTER)
+#undef DEFINE_SETTER
+
 void Config::OnRegistryChange(wil::RegistryChangeKind) {
+  dprint("Registry settings changed");
   this->Load();
 }
 

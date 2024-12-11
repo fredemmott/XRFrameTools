@@ -12,9 +12,12 @@
 
 #include "CSVWriter.hpp"
 #include "CheckHResult.hpp"
+#include "ImGuiHelpers.hpp"
 #include "Win32Utils.hpp"
 
-MainWindow::MainWindow(HINSTANCE instance) : Window(instance, L"XRFrameTools") {
+MainWindow::MainWindow(HINSTANCE instance)
+  : Window(instance, L"XRFrameTools"),
+    mBaseConfig(Config::GetUserDefaults(Config::Access::ReadWrite)) {
 }
 
 MainWindow::~MainWindow() {
@@ -45,7 +48,7 @@ static Projected SingleValue(
 }
 
 void MainWindow::RenderContent() {
-  // Unicode escapes are gylphs from the Windows icon fonts:
+  // Unicode escapes are glyphs from the Windows icon fonts:
   // - "Segoe MDL2 Assets" on Win10+ (including Win11)
   // - "Segoe Fluent Icons" on Win11+
   //
@@ -59,12 +62,91 @@ void MainWindow::RenderContent() {
   // "History" glyph
   ImGui::SeparatorText("\ue81c Logs");
 
+  auto& config = mBaseConfig;
+
+  std::string loggingState;
+  switch (const auto value = config.GetBinaryLoggingEnabledUntil()) {
+    case Config::BinaryLoggingDisabled:
+      loggingState = "disabled";
+      break;
+    case Config::BinaryLoggingPermanentlyEnabled:
+      loggingState = "enabled";
+      break;
+    default: {
+      const auto timestamp
+        = std::chrono::system_clock::time_point {std::chrono::seconds {value}};
+      const auto zoned = std::chrono::zoned_time(
+        std::chrono::current_zone(),
+        std::chrono::time_point_cast<std::chrono::seconds>(timestamp));
+      const auto now = std::chrono::system_clock::now();
+      if (timestamp > now) {
+        loggingState = std::format("enabled until {}", zoned);
+      } else {
+        loggingState = std::format("finished at {}", zoned);
+      }
+    }
+  }
+  ImGui::Text("%s", loggingState.c_str());
+  ImGui::SameLine();
+  {
+    const ImGuiScoped::EnabledIf enabled(config.IsBinaryLoggingEnabled());
+    if (ImGui::Button("Disable")) {
+      config.SetBinaryLoggingEnabledUntil(Config::BinaryLoggingDisabled);
+    }
+  }
+  ImGui::SameLine();
+  {
+    const ImGuiScoped::DisabledIf disabled(
+      config.GetBinaryLoggingEnabledUntil()
+      == Config::BinaryLoggingPermanentlyEnabled);
+    if (ImGui::Button("Enable")) {
+      config.SetBinaryLoggingEnabledUntil(
+        Config::BinaryLoggingPermanentlyEnabled);
+    }
+  }
+  ImGui::SameLine();
+  if (ImGui::Button("\ue916Enable for...")) {
+    ImGui::OpenPopup("EnablePopup");
+  }
+  if (ImGui::BeginPopup("EnablePopup")) {
+    constexpr auto names = std::array {
+      "10 seconds",
+      "1 minute",
+      "5 minutes",
+      "15 minutes",
+      "1 hour",
+      "6 hours",
+      "24 hours",
+    };
+    constexpr std::chrono::seconds values[] {
+      std::chrono::seconds {10},
+      std::chrono::minutes {1},
+      std::chrono::minutes {5},
+      std::chrono::minutes {15},
+      std::chrono::hours {1},
+      std::chrono::hours {6},
+      std::chrono::hours {24}};
+    static_assert(std::size(names) == std::size(values));
+
+    for (size_t i = 0; i < std::size(names); i++) {
+      if (ImGui::Selectable(names[i])) {
+        const auto endAt = std::chrono::system_clock::now() + values[i];
+        const auto timestamp = std::chrono::duration_cast<std::chrono::seconds>(
+                                 endAt.time_since_epoch())
+                                 .count();
+        config.SetBinaryLoggingEnabledUntil(timestamp);
+      }
+    }
+    ImGui::EndPopup();
+  }
+
+  ImGui::ShowDemoWindow();
+
   // "OpenFolderHorizontal" glyph
   if (ImGui::Button("\ued25 Open...")) {
     this->PickBinaryLogFiles();
   }
-  ImGui::BeginDisabled(mBinaryLogFiles.empty());
-  const auto endDisabled = wil::scope_exit(&ImGui::EndDisabled);
+  const ImGuiScoped::DisabledIf noLogFiles(mBinaryLogFiles.empty());
 
   const auto resolution = SingleValue(
     mBinaryLogFiles, "no log files", "varied", [](const auto& log) {

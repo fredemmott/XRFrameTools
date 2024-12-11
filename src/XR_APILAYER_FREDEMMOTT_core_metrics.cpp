@@ -16,14 +16,18 @@
 #include "Config.hpp"
 #include "FramePerformanceCounters.hpp"
 #include "SHMWriter.hpp"
+#include "Win32Utils.hpp"
 
 #define HOOKED_OPENXR_FUNCS(X) \
   X(WaitFrame) \
   X(BeginFrame) \
   X(EndFrame)
 
+static auto gConfig = Config::GetForOpenXRAPILayer();
+static bool gEnabled = true;
+
 static SHMWriter gSHM;
-static BinaryLogWriter gBinaryLogger;
+static std::optional<BinaryLogWriter> gBinaryLogger;
 
 struct Frame final : FramePerformanceCounters {
   Frame() = default;
@@ -93,6 +97,25 @@ decltype(FrameMetricsStore::mTrackedFrames)
 decltype(FrameMetricsStore::mUntrackedFrames)
   FrameMetricsStore::mUntrackedFrames {};
 
+static void LogFrame(const FramePerformanceCounters& frame) {
+  gSHM.LogFrame(frame);
+
+  if (!gConfig.IsBinaryLoggingEnabled()) {
+    if (gBinaryLogger) {
+      dprint("tearing down binary logger");
+      gBinaryLogger = std::nullopt;
+    }
+    return;
+  }
+
+  if (!gBinaryLogger) {
+    dprint("creating binary logger");
+    gBinaryLogger.emplace();
+  }
+
+  gBinaryLogger->LogFrame(frame);
+}
+
 PFN_xrWaitFrame next_xrWaitFrame {nullptr};
 XrResult hooked_xrWaitFrame(
   XrSession session,
@@ -141,17 +164,12 @@ XrResult hooked_xrEndFrame(
   QueryPerformanceCounter(&frame.mEndFrameStop);
 
   if (XR_SUCCEEDED(ret)) [[likely]] {
-    gSHM.LogFrame(frame);
-    gBinaryLogger.LogFrame(frame);
+    LogFrame(frame);
   }
 
   frame.Reset();
   return ret;
 }
-
-static auto gConfig = Config::GetForOpenXRAPILayer();
-
-static bool gEnabled = true;
 
 template <class F, auto Next, auto Layer>
 struct XRFuncDelegator;
@@ -225,29 +243,29 @@ xrNegotiateLoaderApiLayerInterface(
   XrNegotiateApiLayerRequest* apiLayerRequest) {
   // "The API layer **must**..."
   if (loaderInfo->structType != XR_LOADER_INTERFACE_STRUCT_LOADER_INFO) {
-    OutputDebugStringA("XRFrameTools: Bad loaderInfo structType");
+    dprint("Bad loaderInfo structType");
     return XR_ERROR_INITIALIZATION_FAILED;
   }
   if (loaderInfo->structVersion != XR_LOADER_INFO_STRUCT_VERSION) {
-    OutputDebugStringA("XRFrameTools: Bad loaderInfo structVersion");
+    dprint("Bad loaderInfo structVersion");
     return XR_ERROR_INITIALIZATION_FAILED;
   }
   if (loaderInfo->structSize != sizeof(XrNegotiateLoaderInfo)) {
-    OutputDebugStringA("XRFrameTools: Bad loaderInfo structSize");
+    dprint("Bad loaderInfo structSize");
     return XR_ERROR_INITIALIZATION_FAILED;
   }
   if (
     apiLayerRequest->structType
     != XR_LOADER_INTERFACE_STRUCT_API_LAYER_REQUEST) {
-    OutputDebugStringA("XRFrameTools: Bad apiLayerRequest structType");
+    dprint("Bad apiLayerRequest structType");
     return XR_ERROR_INITIALIZATION_FAILED;
   }
   if (apiLayerRequest->structVersion != XR_API_LAYER_INFO_STRUCT_VERSION) {
-    OutputDebugStringA("XRFrameTools: Bad apiLayerRequest structVersion");
+    dprint("Bad apiLayerRequest structVersion");
     return XR_ERROR_INITIALIZATION_FAILED;
   }
   if (apiLayerRequest->structSize != sizeof(XrNegotiateApiLayerRequest)) {
-    OutputDebugStringA("XRFrameTools: Bad apiLayerRequest structSize");
+    dprint("Bad apiLayerRequest structSize");
     return XR_ERROR_INITIALIZATION_FAILED;
   }
 
@@ -258,14 +276,14 @@ xrNegotiateLoaderApiLayerInterface(
     && XR_API_VERSION_1_1 <= loaderInfo->maxApiVersion;
 
   if (!(supports1_0 || supports1_1)) {
-    OutputDebugStringA("XRFrameTools: No compatible OpenXR version");
+    dprint("No compatible OpenXR version");
     return XR_ERROR_INITIALIZATION_FAILED;
   }
   if (supports1_1) {
-    OutputDebugStringA("XRFrameTools: Using OpenXR version 1.1");
+    dprint("Using OpenXR version 1.1");
     apiLayerRequest->layerApiVersion = XR_API_VERSION_1_1;
   } else {
-    OutputDebugStringA("XRFrameTools: Using OpenXR version 1.0");
+    dprint("Using OpenXR version 1.0");
     apiLayerRequest->layerApiVersion = XR_API_VERSION_1_0;
   }
 

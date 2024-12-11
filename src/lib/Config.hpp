@@ -54,7 +54,7 @@ class Config {
       case BinaryLoggingPermanentlyEnabled:
         return true;
       default:
-        return value < std::chrono::duration_cast<std::chrono::seconds>(
+        return value > std::chrono::duration_cast<std::chrono::seconds>(
                          std::chrono::system_clock::now().time_since_epoch())
                          .count();
     }
@@ -68,7 +68,7 @@ class Config {
 
   struct Storage {
 #define DECLARE_SETTING_STORAGE(TYPE, NAME, DEFAULT) \
-  std::optional<TYPE> m##NAME {DEFAULT};
+  std::optional<TYPE> m##NAME {std::nullopt};
     XRFT_ITERATE_SETTINGS(DECLARE_SETTING_STORAGE)
 #undef DECLARE_SETTING_STORAGE
   };
