@@ -9,6 +9,7 @@ configure_file(
 
 include(BinaryLogReader.cmake)
 include(BinaryLogWriter.cmake)
+include(Config.cmake)
 include(CSVWriter.cmake)
 include(FrameMetrics.cmake)
 include(PerformanceCounters.cmake)
