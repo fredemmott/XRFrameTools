@@ -2,15 +2,16 @@
 // SPDX-License-Identifier: MIT
 
 #include <Windows.h>
+#include <wil/filesystem.h>
 
 #include <BinaryLogReader.hpp>
 #include <expected>
 #include <functional>
 #include <magic_enum.hpp>
 #include <print>
-#include <span>
 
 #include "MetricsAggregator.hpp"
+#include "Win32Utils.hpp"
 
 namespace {
 
@@ -181,7 +182,7 @@ int main(int argc, char** argv) {
     "\x1b[1;7mOpenXR application:\x1b[22m {}\x1b[m",
     reader->GetExecutablePath().string());
 
-  wil::unique_file outputFile;
+  wil::unique_hfile outputFile;
   if (!args->mOutput.empty()) {
     const auto path = std::filesystem::absolute(args->mOutput);
     try {
@@ -196,16 +197,21 @@ int main(int argc, char** argv) {
         ec.what());
       return EXIT_FAILURE;
     }
-    fopen_s(outputFile.put(), path.string().c_str(), "w");
-    if (!outputFile) {
-      std::println(
-        stderr, "Couldn't open output file `{}`", args->mOutput.string());
+
+    auto [handle, error] = wil::try_open_or_truncate_existing_file(
+      path.wstring().c_str(), GENERIC_WRITE);
+    if (!handle) {
+      const std::error_code ec {
+        HRESULT_FROM_WIN32(error), std::system_category()};
+      std::println(stderr, "Couldn't open output file `{}`", ec.message());
       return EXIT_FAILURE;
     }
+    outputFile = std::move(handle);
   }
 
-  const auto out = outputFile ? outputFile.get() : stdout;
-  std::println(
+  const auto out
+    = outputFile ? outputFile.get() : GetStdHandle(STD_OUTPUT_HANDLE);
+  win32::println(
     out,
     "Time (us),Count,Wait CPU (us),App CPU (µs),Runtime CPU (us),Render CPU "
     "(us),Interval "
@@ -232,7 +238,7 @@ int main(int argc, char** argv) {
       continue;
     };
 
-    std::println(
+    win32::println(
       out,
       "{},{},{},{},{},{},{},{:0.1f}",
       pcm.ToDuration(*firstFrameTime, frame->mEndFrameStart).count(),
