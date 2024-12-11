@@ -13,6 +13,7 @@
 #include <ranges>
 
 #include "BinaryLogWriter.hpp"
+#include "Config.hpp"
 #include "FramePerformanceCounters.hpp"
 #include "SHMWriter.hpp"
 
@@ -147,6 +148,8 @@ XrResult hooked_xrEndFrame(
   frame.Reset();
   return ret;
 }
+
+static auto gConfig = Config::GetForOpenXRAPILayer();
 
 static bool gEnabled = true;
 

@@ -29,7 +29,7 @@ endmacro()
 
 macro(add_xr_api_layer TARGET)
   add_library(${TARGET} MODULE ${ARGN})
-  target_link_libraries(${TARGET} PRIVATE openxr SHMWriter BinaryLogWriter)
+  target_link_libraries(${TARGET} PRIVATE openxr Config)
   set_target_properties(
     ${TARGET}
     PROPERTIES
@@ -45,6 +45,12 @@ endmacro()
 add_xr_api_layer(
   core_metrics
   XR_APILAYER_FREDEMMOTT_core_metrics.cpp
+)
+target_link_libraries(
+  core_metrics
+  PRIVATE
+  BinaryLogWriter
+  SHMWriter
 )
 
 add_executable(cli cli.cpp)

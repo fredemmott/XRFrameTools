@@ -25,14 +25,16 @@ class Config {
   };
 
   Config() = delete;
-  static inline Config GetForOpenXRApp(Access, const std::filesystem::path&);
-  static inline Config GetUserDefaults(Access);
+  static Config GetForOpenXRApp(Access, const std::filesystem::path&);
+  static Config GetUserDefaults(Access);
+  //// GetForOpenXRApp(Access::ReadOnly, <current executable path>)
+  static Config GetForOpenXRAPILayer();
 
   static constexpr int64_t BinaryLoggingDisabled = 0;
   static constexpr int64_t BinaryLoggingPermanentlyEnabled = -1;
 
 #define DEFINE_GETTER(TYPE, NAME, DEFAULT) \
-  inline TYPE NAME() const noexcept { \
+  inline TYPE Get##NAME() const noexcept { \
     std::shared_lock lock(const_cast<std::shared_mutex&>(mMutex)); \
     if (mAppStorage.m##NAME.has_value()) { \
       return mAppStorage.m##NAME.value(); \
@@ -44,6 +46,20 @@ class Config {
   XRFT_ITERATE_SETTINGS(DEFINE_GETTER)
   XRFT_ITERATE_SETTINGS(DECLARE_SETTER)
 #undef DEFINE_GETTER
+
+  inline bool IsBinaryLoggingEnabled() const noexcept {
+    switch (const auto value = this->GetBinaryLoggingEnabledUntil()) {
+      case BinaryLoggingDisabled:
+        return false;
+      case BinaryLoggingPermanentlyEnabled:
+        return true;
+      default:
+        return value < std::chrono::duration_cast<std::chrono::seconds>(
+                         std::chrono::system_clock::now().time_since_epoch())
+                         .count();
+    }
+  }
+
  private:
   static constexpr auto DefaultsSubkey = L"__defaults__";
   Config(wil::unique_hkey appKey, wil::unique_hkey defaultsKey);
