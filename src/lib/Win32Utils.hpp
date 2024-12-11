@@ -26,7 +26,7 @@ constexpr size_t SizeOfStringGuid
 
 enum class ByteIndexKind {
   LittleEndian,
-  PerByte,
+  ByteArray,
 };
 
 template <char... Value>
@@ -52,8 +52,8 @@ struct GuidParser<Value...> {
     ParseRange<0, 0, 8, LittleEndian>(ret);
     ParseRange<4, 9, 13, LittleEndian>(ret);
     ParseRange<6, 14, 18, LittleEndian>(ret);
-    ParseRange<8, 19, 23, PerByte>(ret);
-    ParseRange<10, 24, 36, PerByte>(ret);
+    ParseRange<8, 19, 23, ByteArray>(ret);
+    ParseRange<10, 24, 36, ByteArray>(ret);
 
     return std::bit_cast<GUID>(ret);
   }
@@ -147,6 +147,3 @@ consteval GUID operator"" _guid() {
       .Parse();
   }(std::make_index_sequence<sizeof(CTS.mValue)> {});
 }
-
-constexpr GUID TestGuid = "9add179d-b650-4eca-b471-88ab38c2bd46"_guid;
-constexpr GUID TestGuid2 = "{2f896df5-d701-42ea-ab02-cbd50af16516}"_guid;

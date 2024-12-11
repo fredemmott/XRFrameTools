@@ -19,6 +19,30 @@ MainWindow::MainWindow(HINSTANCE instance) : Window(instance, L"XRFrameTools") {
 MainWindow::~MainWindow() {
 }
 
+template <
+  class Container,
+  class Element = std::ranges::range_value_t<Container>,
+  std::regular_invocable<Element> Projection,
+  class Projected = std::invoke_result_t<Projection, const Element&>>
+static Projected SingleValue(
+  Container&& container,
+  std::type_identity_t<Projected>&& init,
+  std::type_identity_t<Projected>&& varied,
+  Projection proj) {
+  std::optional<Projected> acc {std::nullopt};
+  for (auto&& it: std::forward<Container>(container)) {
+    const auto value = std::invoke(proj, it);
+    if (!acc.has_value()) {
+      acc = value;
+      continue;
+    }
+    if (acc != value) {
+      return std::forward<decltype(varied)>(varied);
+    }
+  }
+  return acc.value_or(std::forward<decltype(init)>(init));
+}
+
 void MainWindow::RenderContent() {
   // Unicode escapes are gylphs from the Windows icon fonts:
   // - "Segoe MDL2 Assets" on Win10+ (including Win11)
@@ -32,7 +56,7 @@ void MainWindow::RenderContent() {
   // https://learn.microsoft.com/en-us/windows/apps/design/style/segoe-ui-symbol-font
 
   // "History" glyph
-  ImGui::SeparatorText("\ue81c Binary Logs");
+  ImGui::SeparatorText("\ue81c Logs");
 
   // "OpenFolderHorizontal" glyph
   if (ImGui::Button("\ued25 Open...")) {
@@ -41,42 +65,21 @@ void MainWindow::RenderContent() {
   ImGui::BeginDisabled(mBinaryLogFiles.empty());
   const auto endDisabled = wil::scope_exit(&ImGui::EndDisabled);
 
-  if (mBinaryLogFiles.empty()) {
-    ImGui::LabelText("Log resolution", "no log files");
-  } else {
-    constexpr auto getResolution = [](const BinaryLogReader& reader) {
-      return reader.GetPerformanceCounterMath().GetResolution().QuadPart;
-    };
-    const auto first = getResolution(mBinaryLogFiles.front());
-    const auto it = std::ranges::find_if(
-      mBinaryLogFiles, [first, getResolution](const BinaryLogReader& reader) {
-        return getResolution(reader) != first;
-      });
-    if (it == mBinaryLogFiles.end()) {
-      ImGui::LabelText(
-        "Log resolution", "%s", std::format("{}hz", first).c_str());
-    } else {
-      ImGui::LabelText("Log resolution", "varied");
-    }
-  }
+  const auto resolution = SingleValue(
+    mBinaryLogFiles, "no log files", "varied", [](const auto& log) {
+      return std::format(
+        "{}hz", log.GetPerformanceCounterMath().GetResolution().QuadPart);
+    });
+  ImGui::LabelText("Resolution", "%s", resolution.c_str());
 
-  if (mBinaryLogFiles.empty()) {
-    ImGui::LabelText("Application", "no log files");
-  } else {
-    const auto first = mBinaryLogFiles.front().GetExecutablePath();
-    const auto it = std::ranges::find_if(
-      mBinaryLogFiles, [first](const BinaryLogReader& reader) {
-        return reader.GetExecutablePath() != first;
-      });
-    if (it == mBinaryLogFiles.end()) {
-      ImGui::LabelText("Application", "%s", first.string().c_str());
-    } else {
-      ImGui::LabelText("Application", "varied");
-    }
-  }
+  const auto executable = SingleValue(
+    mBinaryLogFiles, "no log files", "varied", [](const auto& log) {
+      return log.GetExecutablePath().string();
+    });
+  ImGui::LabelText("Application path", "%s", executable.c_str());
 
   int aggregateFrames = 10;
-  if (ImGui::InputInt("Frames per row (averaged)", &mCSVFramesPerRow)) {
+  if (ImGui::InputInt("Frames per CSV row (averaged)", &mCSVFramesPerRow)) {
     if (mCSVFramesPerRow < 1) {
       mCSVFramesPerRow = 1;
     }
@@ -95,7 +98,7 @@ void MainWindow::PickBinaryLogFiles() {
   const auto picker
     = wil::CoCreateInstance<IFileOpenDialog>(CLSID_FileOpenDialog);
   CheckHResult(picker->SetClientGuid(BinaryLogsFilePicker));
-  picker->SetTitle(L"Open binary log files");
+  picker->SetTitle(L"Open log files");
   picker->SetOptions(
     FOS_FILEMUSTEXIST | FOS_PATHMUSTEXIST | FOS_FORCEFILESYSTEM
     | FOS_ALLOWMULTISELECT);
@@ -146,7 +149,7 @@ void MainWindow::PickBinaryLogFiles() {
 
     const auto ret = MessageBoxA(
       GetHWND(),
-      "Error opening binary log file",
+      "Error opening log file",
       std::format(
         "Couldn't open `{}`:\n\n{}",
         path.string(),
