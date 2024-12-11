@@ -34,15 +34,20 @@ OpenError OpenError::BadPerformanceCounterFrequency() {
 }
 
 BinaryLogReader::BinaryLogReader(
+  const std::filesystem::path& logFilePath,
   wil::unique_hfile file,
   const std::filesystem::path& executable,
   PerformanceCounterMath pcm)
-  : mFile(std::move(file)),
+  : mLogFilePath(logFilePath),
+    mFile(std::move(file)),
     mExecutable(executable),
     mPerformanceCounterMath(pcm) {
 }
 
 BinaryLogReader::~BinaryLogReader() = default;
+std::filesystem::path BinaryLogReader::GetLogFilePath() const noexcept {
+  return mLogFilePath;
+}
 
 PerformanceCounterMath BinaryLogReader::GetPerformanceCounterMath()
   const noexcept {
@@ -124,6 +129,7 @@ BinaryLogReader::Create(const std::filesystem::path& path) {
   }
 
   return BinaryLogReader {
+    path,
     std::move(file),
     executable,
     PerformanceCounterMath {performanceCounterFrequency},

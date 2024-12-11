@@ -10,4 +10,6 @@ target_link_libraries(
   BinaryLogReader
   PUBLIC
   WIL::WIL
+  PRIVATE
+  PerformanceCounters
 )

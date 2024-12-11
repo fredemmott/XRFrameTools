@@ -87,6 +87,8 @@ set_target_properties(
 target_link_libraries(
   app
   PRIVATE
+  BinaryLogReader
+  # vcpkg
   imgui::imgui
   Win32Utils
   # System libraries

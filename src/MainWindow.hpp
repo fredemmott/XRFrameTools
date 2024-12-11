@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: MIT
 #pragma once
 
+#include <vector>
+
+#include "BinaryLogReader.hpp"
 #include "Window.hpp"
 
 class MainWindow final : public Window {
@@ -13,4 +16,9 @@ class MainWindow final : public Window {
   using Window::Window;
 
   void RenderContent() override;
+
+ private:
+  int mCSVFramesPerRow {10};
+  std::vector<BinaryLogReader> mBinaryLogFiles;
+  void PickBinaryLogFiles();
 };

@@ -20,6 +20,9 @@ class BinaryLogReader {
   class OpenError;
 
   [[nodiscard]]
+  std::filesystem::path GetLogFilePath() const noexcept;
+
+  [[nodiscard]]
   PerformanceCounterMath GetPerformanceCounterMath() const noexcept;
 
   [[nodiscard]]
@@ -64,11 +67,13 @@ class BinaryLogReader {
   };
 
  private:
+  std::filesystem::path mLogFilePath;
   wil::unique_hfile mFile;
   std::filesystem::path mExecutable;
   PerformanceCounterMath mPerformanceCounterMath;
 
   BinaryLogReader(
+    const std::filesystem::path& path,
     wil::unique_hfile,
     const std::filesystem::path& executable,
     PerformanceCounterMath);
