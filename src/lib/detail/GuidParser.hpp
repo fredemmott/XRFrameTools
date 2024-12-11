@@ -2,15 +2,8 @@
 // SPDX-License-Identifier: MIT
 #pragma once
 
-#include <Windows.h>
-
 #include <array>
-#include <filesystem>
-#include <utility>
-
-#include "detail/GuidParser.hpp"
-
-std::filesystem::path GetKnownFolderPath(const GUID& folderID);
+#include <cinttypes>
 
 namespace detail::compile_time_guid {
 // Marker for more readable compile errors
@@ -139,13 +132,3 @@ struct CompileTimeStringHelper {
   }
 };
 }// namespace detail
-
-template <detail::CompileTimeStringHelper CTS>
-consteval GUID operator"" _guid() {
-  return []<std::size_t... Index>(std::index_sequence<Index...>) {
-    // Construct an instance so we get the nice compile error if it's the wrong
-    // size
-    return detail::compile_time_guid::GuidParser<CTS.mValue[Index]...> {}
-      .Parse();
-  }(std::make_index_sequence<sizeof(CTS.mValue)> {});
-}
