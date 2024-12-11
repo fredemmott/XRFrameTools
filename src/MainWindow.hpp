@@ -24,6 +24,8 @@ class MainWindow final : public Window {
 
   int mCSVFramesPerRow {CSVWriter::DefaultFramesPerRow};
   std::vector<BinaryLogReader> mBinaryLogFiles;
-  void PickBinaryLogFiles();
+  [[nodiscard]] std::vector<BinaryLogReader> PickBinaryLogFiles();
   void ConvertBinaryLogFiles();
+  void LoggingControls();
+  void LogConversionControls();
 };

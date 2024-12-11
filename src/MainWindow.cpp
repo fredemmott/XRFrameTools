@@ -3,6 +3,7 @@
 
 #include "MainWindow.hpp"
 
+#include <shellapi.h>
 #include <shlobj_core.h>
 #include <wil/com.h>
 #include <wil/resource.h>
@@ -47,21 +48,7 @@ static Projected SingleValue(
   return acc.value_or(std::forward<decltype(init)>(init));
 }
 
-void MainWindow::RenderContent() {
-  // Unicode escapes are glyphs from the Windows icon fonts:
-  // - "Segoe MDL2 Assets" on Win10+ (including Win11)
-  // - "Segoe Fluent Icons" on Win11+
-  //
-  // We use Fluent if available, but fallback to MDL2, so pick glyphs that are
-  // in both fonts (Fluent includes all from MDL2 Assets)
-  //
-  // Reference:
-  //
-  // https://learn.microsoft.com/en-us/windows/apps/design/style/segoe-ui-symbol-font
-
-  // "History" glyph
-  ImGui::SeparatorText("\ue81c Logs");
-
+void MainWindow::LoggingControls() {
   auto& config = mBaseConfig;
 
   std::string loggingState;
@@ -108,7 +95,7 @@ void MainWindow::RenderContent() {
   if (ImGui::Button("\ue916Enable for...")) {
     ImGui::OpenPopup("EnablePopup");
   }
-  if (ImGui::BeginPopup("EnablePopup")) {
+  if (const auto popup = ImGuiScoped::Popup("EnablePopup")) {
     constexpr auto names = std::array {
       "10 seconds",
       "1 minute",
@@ -137,16 +124,29 @@ void MainWindow::RenderContent() {
         config.SetBinaryLoggingEnabledUntil(timestamp);
       }
     }
-    ImGui::EndPopup();
+  }
+}
+
+void MainWindow::LogConversionControls() {
+  // "ReportDocument" glyph
+  if (ImGui::Button("\ue9f9 Convert log files to CSV...")) {
+    ImGui::OpenPopup("Convert log files to CSV");
   }
 
-  ImGui::ShowDemoWindow();
-
-  // "OpenFolderHorizontal" glyph
-  if (ImGui::Button("\ued25 Open...")) {
-    this->PickBinaryLogFiles();
+  const auto popup = ImGuiScoped::PopupModal(
+    "Convert log files to CSV", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+  if (!popup) {
+    return;
   }
-  const ImGuiScoped::DisabledIf noLogFiles(mBinaryLogFiles.empty());
+
+  if (mBinaryLogFiles.empty()) {
+    auto files = PickBinaryLogFiles();
+    if (files.empty()) {
+      ImGui::CloseCurrentPopup();
+      return;
+    }
+    mBinaryLogFiles = std::move(files);
+  }
 
   const auto resolution = SingleValue(
     mBinaryLogFiles, "no log files", "varied", [](const auto& log) {
@@ -168,12 +168,55 @@ void MainWindow::RenderContent() {
     }
   }
 
-  // "Processing" Glyph
-  if (ImGui::Button("\ue9f9 Convert to CSV...")) {
+  // "SaveAs" Glyph
+  const auto saveAsLabel = std::format(
+    "\ue792 {}...", mBinaryLogFiles.size() == 1 ? "Save as" : "Save to folder");
+  if (ImGui::Button(saveAsLabel.c_str())) {
     this->ConvertBinaryLogFiles();
+    ImGui::CloseCurrentPopup();
+  }
+  ImGui::SameLine();
+  if (ImGui::Button("Cancel")) {
+    mBinaryLogFiles.clear();
+    ImGui::CloseCurrentPopup();
   }
 }
-void MainWindow::PickBinaryLogFiles() {
+void MainWindow::RenderContent() {
+  // Unicode escapes are glyphs from the Windows icon fonts:
+  // - "Segoe MDL2 Assets" on Win10+ (including Win11)
+  // - "Segoe Fluent Icons" on Win11+
+  //
+  // We use Fluent if available, but fallback to MDL2, so pick glyphs that are
+  // in both fonts (Fluent includes all from MDL2 Assets)
+  //
+  // Reference:
+  //
+  // https://learn.microsoft.com/en-us/windows/apps/design/style/segoe-ui-symbol-font
+
+  // "History" glyph
+  ImGui::SeparatorText("\ue81c Performance logging");
+
+  this->LoggingControls();
+
+  ImGui::Separator();
+
+  this->LogConversionControls();
+
+  // "OpenFolderHorizontal"
+  if (ImGui::Button("\ued25 Open logs folder...")) {
+    ShellExecuteW(
+      GetHWND(),
+      L"explore",
+      (GetKnownFolderPath(FOLDERID_LocalAppData) / "XRFrameTools" / "Logs")
+        .wstring()
+        .c_str(),
+      nullptr,
+      nullptr,
+      SW_SHOWNORMAL);
+  }
+}
+
+std::vector<BinaryLogReader> MainWindow::PickBinaryLogFiles() {
   // used for remembering location/preferences
   constexpr GUID BinaryLogsFilePicker
     = "{f09453d5-0bb2-4c09-971d-b8c4fa45c2c3}"_guid;
@@ -199,11 +242,11 @@ void MainWindow::PickBinaryLogFiles() {
   picker->SetDefaultFolder(defaultFolderShellItem.get());
 
   constexpr COMDLG_FILTERSPEC fileTypes[] = {
-    {L"Binary logs", L"*.XRFrameToolsBinLog"},
+    {L"Logs files", L"*.XRFrameToolsBinLog"},
   };
   picker->SetFileTypes(std::size(fileTypes), fileTypes);
   if (picker->Show(this->GetHWND()) != S_OK) {
-    return;
+    return {};
   }
 
   wil::com_ptr<IShellItemArray> items;
@@ -212,7 +255,7 @@ void MainWindow::PickBinaryLogFiles() {
   DWORD count {};
   CheckHResult(items->GetCount(&count));
   if (count == 0) {
-    return;
+    return {};
   }
 
   std::vector<BinaryLogReader> readers;
@@ -240,11 +283,11 @@ void MainWindow::PickBinaryLogFiles() {
         .c_str(),
       MB_ICONEXCLAMATION | MB_OKCANCEL);
     if (ret == IDCANCEL) {
-      return;
+      return {};
     }
   }
 
-  mBinaryLogFiles = std::move(readers);
+  return readers;
 }
 
 void MainWindow::ConvertBinaryLogFiles() {
@@ -295,24 +338,49 @@ void MainWindow::ConvertBinaryLogFiles() {
   CheckHResult(
     outputShellItem->GetDisplayName(SIGDN_FILESYSPATH, pathString.put()));
   const auto outputPath = std::filesystem::weakly_canonical({pathString.get()});
+  const auto clearOnExit
+    = wil::scope_exit([this]() { mBinaryLogFiles.clear(); });
+
+  using unique_idlist
+    = wil::unique_any<LPITEMIDLIST, decltype(&ILFree), ILFree>;
 
   if (mBinaryLogFiles.size() == 1) {
     CSVWriter::Write(
       std::move(mBinaryLogFiles.front()), outputPath, mCSVFramesPerRow);
-  } else {
-    std::vector<std::filesystem::path> csvFiles;
-    for (auto&& it: mBinaryLogFiles) {
-      const auto itPath
-        = (outputPath / it.GetLogFilePath()).replace_extension(".csv");
-      csvFiles.push_back(itPath);
-      CSVWriter::Write(std::move(it), itPath, mCSVFramesPerRow);
-    }
+    unique_idlist pidl;
+    outputShellItem.query<IPersistIDList>()->GetIDList(pidl.put());
+    SHOpenFolderAndSelectItems(pidl.get(), 0, nullptr, 0);
+    return;
   }
 
-  LPITEMIDLIST pidl {};
-  outputShellItem.query<IPersistIDList>()->GetIDList(&pidl);
-  SHOpenFolderAndSelectItems(pidl, 0, nullptr, 0);
-  ILFree(pidl);
+  std::vector<std::filesystem::path> csvFiles;
 
-  mBinaryLogFiles.clear();
+  using unique_childid
+    = wil::unique_any<PITEMID_CHILD, decltype(&ILFree), ILFree>;
+  std::vector<unique_childid> childIDs;
+  for (auto&& it: mBinaryLogFiles) {
+    const auto itPath
+      = (outputPath / it.GetLogFilePath().filename()).replace_extension(".csv");
+    csvFiles.push_back(itPath);
+    CSVWriter::Write(std::move(it), itPath, mCSVFramesPerRow);
+
+    unique_idlist pidl;
+    SHParseDisplayName(
+      itPath.wstring().c_str(), nullptr, pidl.put(), 0, nullptr);
+    childIDs.push_back(std::move(pidl));
+  }
+
+  unique_idlist folderPidl;
+  outputShellItem.query<IPersistIDList>()->GetIDList(folderPidl.put());
+
+  std::vector<PCITEMID_CHILD> childRawPtrs;
+  for (auto&& it: childIDs) {
+    childRawPtrs.push_back(it.get());
+    dprint("parent: {}", ILIsParent(folderPidl.get(), it.get(), true));
+  }
+  childRawPtrs.push_back(nullptr);
+  childRawPtrs.push_back(nullptr);
+
+  SHOpenFolderAndSelectItems(
+    folderPidl.get(), childRawPtrs.size(), childRawPtrs.data(), 0);
 }
