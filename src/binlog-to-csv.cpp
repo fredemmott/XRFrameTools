@@ -211,11 +211,13 @@ int main(int argc, char** argv) {
 
   const auto out
     = outputFile ? outputFile.get() : GetStdHandle(STD_OUTPUT_HANDLE);
+
+  // Include the UTF-8 Byte Order Mark as Excel and Google Sheets use it
+  // as a magic value for UTF-8
   win32::println(
     out,
-    "Time (us),Count,Wait CPU (us),App CPU (µs),Runtime CPU (us),Render CPU "
-    "(us),Interval "
-    "(us),FPS");
+    "\ufeffTime (µs),Count,Wait CPU (µs),App CPU (µs),Runtime CPU (µs),Render "
+    "CPU (µs),Interval (µs),FPS");
 
   uint64_t frameCount = 0;
   uint64_t flushCount = 0;
