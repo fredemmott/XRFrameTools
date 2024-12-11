@@ -10,6 +10,7 @@
 
 #include <magic_enum.hpp>
 
+#include "CSVWriter.hpp"
 #include "CheckHResult.hpp"
 #include "Win32Utils.hpp"
 
@@ -87,7 +88,7 @@ void MainWindow::RenderContent() {
 
   // "Processing" Glyph
   if (ImGui::Button("\ue9f9 Convert to CSV...")) {
-    // TODO
+    this->ConvertBinaryLogFiles();
   }
 }
 void MainWindow::PickBinaryLogFiles() {
@@ -162,4 +163,74 @@ void MainWindow::PickBinaryLogFiles() {
   }
 
   mBinaryLogFiles = std::move(readers);
+}
+
+void MainWindow::ConvertBinaryLogFiles() {
+  // used for remembering location/preferences
+  constexpr GUID CSVFilePicker = "{31143ff6-b497-406f-a240-f250e3e3c455}"_guid;
+  constexpr COMDLG_FILTERSPEC fileTypes[] = {
+    {L"CSV Files", L"*.csv"},
+  };
+
+  if (mBinaryLogFiles.empty()) {
+    return;
+  }
+
+  const auto picker = wil::CoCreateInstance<IFileDialog>(
+    mBinaryLogFiles.size() == 1 ? CLSID_FileSaveDialog : CLSID_FileOpenDialog);
+  picker->SetClientGuid(CSVFilePicker);
+
+  FILEOPENDIALOGOPTIONS options
+    = FOS_PATHMUSTEXIST | FOS_FORCEFILESYSTEM | FOS_NOREADONLYRETURN;
+  if (mBinaryLogFiles.size() == 1) {
+    picker->SetTitle(L"Save CSV file");
+    picker->SetFileTypes(std::size(fileTypes), fileTypes);
+    picker->SetFileName(
+      (mBinaryLogFiles.front().GetLogFilePath().stem().wstring() + L".csv")
+        .c_str());
+  } else {
+    picker->SetTitle(L"Save CSV files");
+    picker->SetOkButtonLabel(L"Save to folder");
+    options |= FOS_PICKFOLDERS;
+  }
+  picker->SetOptions(options);
+
+  wil::com_ptr<IShellItem> defaultFolderShellItem;
+  CheckHResult(SHCreateItemInKnownFolder(
+    FOLDERID_Documents,
+    KF_FLAG_DEFAULT,
+    nullptr,
+    IID_PPV_ARGS(defaultFolderShellItem.put())));
+  picker->SetDefaultFolder(defaultFolderShellItem.get());
+
+  if (picker->Show(this->GetHWND()) != S_OK) {
+    return;
+  }
+
+  wil::com_ptr<IShellItem> outputShellItem;
+  CheckHResult(picker->GetResult(outputShellItem.put()));
+  wil::unique_cotaskmem_string pathString;
+  CheckHResult(
+    outputShellItem->GetDisplayName(SIGDN_FILESYSPATH, pathString.put()));
+  const auto outputPath = std::filesystem::weakly_canonical({pathString.get()});
+
+  if (mBinaryLogFiles.size() == 1) {
+    CSVWriter::Write(
+      std::move(mBinaryLogFiles.front()), outputPath, mCSVFramesPerRow);
+  } else {
+    std::vector<std::filesystem::path> csvFiles;
+    for (auto&& it: mBinaryLogFiles) {
+      const auto itPath
+        = (outputPath / it.GetLogFilePath()).replace_extension(".csv");
+      csvFiles.push_back(itPath);
+      CSVWriter::Write(std::move(it), itPath, mCSVFramesPerRow);
+    }
+  }
+
+  LPITEMIDLIST pidl {};
+  outputShellItem.query<IPersistIDList>()->GetIDList(&pidl);
+  SHOpenFolderAndSelectItems(pidl, 0, nullptr, 0);
+  ILFree(pidl);
+
+  mBinaryLogFiles.clear();
 }

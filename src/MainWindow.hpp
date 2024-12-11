@@ -5,12 +5,13 @@
 #include <vector>
 
 #include "BinaryLogReader.hpp"
+#include "CSVWriter.hpp"
 #include "Window.hpp"
 
 class MainWindow final : public Window {
  public:
   explicit MainWindow(const HINSTANCE instance);
-  ~MainWindow();
+  ~MainWindow() override;
 
  protected:
   using Window::Window;
@@ -18,7 +19,8 @@ class MainWindow final : public Window {
   void RenderContent() override;
 
  private:
-  int mCSVFramesPerRow {10};
+  int mCSVFramesPerRow {CSVWriter::DefaultFramesPerRow};
   std::vector<BinaryLogReader> mBinaryLogFiles;
   void PickBinaryLogFiles();
+  void ConvertBinaryLogFiles();
 };
