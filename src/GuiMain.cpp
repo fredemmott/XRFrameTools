@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 #include <Windows.h>
+#include <implot.h>
 #include <shlobj_core.h>
 
 #include <filesystem>
@@ -29,6 +30,8 @@ int WINAPI wWinMain(
 
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
+  ImPlot::CreateContext();
+  ImGui::StyleColorsLight();
 
   const auto iniPath
     = GetKnownFolderPath(FOLDERID_LocalAppData) / "XRFrameTools" / "imgui.ini";

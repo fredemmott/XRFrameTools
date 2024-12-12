@@ -25,6 +25,10 @@ class Window {
  protected:
   virtual void RenderContent() = 0;
 
+  virtual std::optional<float> GetTargetFPS() const noexcept {
+    return std::nullopt;
+  }
+
  private:
   static Window* gInstance;
   wil::unique_hwnd mHwnd;

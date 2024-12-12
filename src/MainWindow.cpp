@@ -3,6 +3,7 @@
 
 #include "MainWindow.hpp"
 
+#include <implot.h>
 #include <shellapi.h>
 #include <shlobj_core.h>
 #include <wil/com.h>
@@ -10,11 +11,15 @@
 #include <wil/win32_helpers.h>
 
 #include <magic_enum.hpp>
+#include <ranges>
 
 #include "CSVWriter.hpp"
 #include "CheckHResult.hpp"
 #include "ImGuiHelpers.hpp"
+#include "SHM.hpp"
 #include "Win32Utils.hpp"
+
+static const auto gPCM = PerformanceCounterMath::CreateForLiveData();
 
 MainWindow::MainWindow(HINSTANCE instance)
   : Window(instance, L"XRFrameTools"),
@@ -22,6 +27,9 @@ MainWindow::MainWindow(HINSTANCE instance)
 }
 
 MainWindow::~MainWindow() {
+}
+
+MainWindow::LiveData::LiveData() : mAggregator(gPCM) {
 }
 
 template <
@@ -181,17 +189,8 @@ void MainWindow::LogConversionControls() {
     ImGui::CloseCurrentPopup();
   }
 }
-void MainWindow::RenderContent() {
-  // Unicode escapes are glyphs from the Windows icon fonts:
-  // - "Segoe MDL2 Assets" on Win10+ (including Win11)
-  // - "Segoe Fluent Icons" on Win11+
-  //
-  // We use Fluent if available, but fallback to MDL2, so pick glyphs that are
-  // in both fonts (Fluent includes all from MDL2 Assets)
-  //
-  // Reference:
-  //
-  // https://learn.microsoft.com/en-us/windows/apps/design/style/segoe-ui-symbol-font
+void MainWindow::LoggingSection() {
+  const ImGuiScoped::ID idScope {"Logging"};
 
   // "History" glyph
   ImGui::SeparatorText("\ue81c Performance logging");
@@ -214,6 +213,39 @@ void MainWindow::RenderContent() {
       nullptr,
       SW_SHOWNORMAL);
   }
+}
+
+void MainWindow::RenderContent() {
+  // Unicode escapes are glyphs from the Windows icon fonts:
+  // - "Segoe MDL2 Assets" on Win10+ (including Win11)
+  // - "Segoe Fluent Icons" on Win11+
+  //
+  // We use Fluent if available, but fallback to MDL2, so pick glyphs that are
+  // in both fonts (Fluent includes all from MDL2 Assets)
+  //
+  // Reference:
+  //
+  // https://learn.microsoft.com/en-us/windows/apps/design/style/segoe-ui-symbol-font
+
+  this->LoggingSection();
+  this->LiveDataSection();
+}
+std::optional<float> MainWindow::GetTargetFPS() const noexcept {
+  if (!mLiveData.mEnabled) {
+    return std::nullopt;
+  }
+
+  LARGE_INTEGER now {};
+  QueryPerformanceCounter(&now);
+
+  const auto liveDataAge = gPCM.ToDuration(mLiveData.mLatestMetricsAt, now);
+  if (liveDataAge < std::chrono::seconds(LiveData::HistorySeconds)) {
+    return LiveData::ChartFPS;
+  }
+
+  // If we have no data, but checking is enabled, let's always wake up at
+  // least once per second to find out if we have any
+  return 1;
 }
 
 std::vector<BinaryLogReader> MainWindow::PickBinaryLogFiles() {
@@ -376,11 +408,233 @@ void MainWindow::ConvertBinaryLogFiles() {
   std::vector<PCITEMID_CHILD> childRawPtrs;
   for (auto&& it: childIDs) {
     childRawPtrs.push_back(it.get());
-    dprint("parent: {}", ILIsParent(folderPidl.get(), it.get(), true));
   }
   childRawPtrs.push_back(nullptr);
   childRawPtrs.push_back(nullptr);
 
   SHOpenFolderAndSelectItems(
     folderPidl.get(), childRawPtrs.size(), childRawPtrs.data(), 0);
+}
+
+static auto RoundUp(auto value, auto multiplier) {
+  return ((value + multiplier) / multiplier) * multiplier;
+}
+
+template <class T>
+struct MainWindow::LiveData::PlotPoint : ImPlotPoint {
+  PlotPoint(const int idx, const T value)
+    : ImPlotPoint(
+        static_cast<double>(idx) / MainWindow::LiveData::ChartFPS,
+        static_cast<double>(value)) {
+  }
+};
+
+void MainWindow::LiveDataSection() {
+  const ImGuiScoped::ID idScope {"Live data"};
+
+  // "SpeedHigh" glyph
+  ImGui::SeparatorText("\uec4aLive data");
+
+  ImGui::Checkbox("Enable updates", &mLiveData.mEnabled);
+
+  if (mLiveData.mEnabled) {
+    this->UpdateLiveData();
+  }
+
+  const auto slowestFrameMicroseconds
+    = std::ranges::max_element(mLiveData.mChartFrames, {}, [](const auto& it) {
+        return it.mSincePreviousFrame.count();
+      })->mSincePreviousFrame.count();
+  const auto maxMicroseconds = std::clamp(
+    static_cast<double>(RoundUp(slowestFrameMicroseconds, 1000)),
+    0.0,
+    1000000.0 / 15);
+  const auto SetupMicrosecondsAxis = [maxMicroseconds](ImAxis axis) {
+    ImPlot::SetupAxis(axis, "µs");
+    ImPlot::SetupAxisLimits(axis, 0.0, maxMicroseconds, ImPlotCond_Always);
+  };
+
+  if (const auto plot = ImGuiScoped::ImPlot("FPS")) {
+    ImPlot::SetupAxis(ImAxis_X1);
+
+    ImPlot::SetupAxis(ImAxis_Y1, "hz");
+    const auto fastestFrameMicroseconds
+      = std::ranges::min_element(
+          mLiveData.mChartFrames,
+          {},
+          [](const auto& it) { return it.mSincePreviousFrame.count(); })
+          ->mSincePreviousFrame.count();
+    const auto maxFPS = (fastestFrameMicroseconds == 0)
+      ? 72.0
+      : (1000000.0 / fastestFrameMicroseconds);
+    ImPlot::SetupAxisLimits(
+      ImAxis_Y1, 0, RoundUp(maxFPS, 5), ImPlotCond_Always);
+    SetupMicrosecondsAxis(ImAxis_Y2);
+
+    ImPlot::SetAxes(ImAxis_X1, ImAxis_Y1);
+    ImPlot::PlotLineG(
+      "FPS",
+      [](int idx, void* user_data) -> ImPlotPoint {
+        const auto& frame
+          = static_cast<LiveData::ChartFrames*>(user_data)->at(idx);
+        const auto interval = frame.mSincePreviousFrame.count();
+        return LiveData::PlotPoint {
+          idx,
+          interval ? 1000000.0f / interval : 0,
+        };
+      },
+      mLiveData.mChartFrames.data(),
+      mLiveData.mChartFrames.size());
+
+    ImPlot::SetAxes(ImAxis_X1, ImAxis_Y2);
+    ImPlot::PlotLineG(
+      "Frame Interval",
+      [](int idx, void* user_data) -> ImPlotPoint {
+        const auto& frame
+          = static_cast<LiveData::ChartFrames*>(user_data)->at(idx);
+        return LiveData::PlotPoint {
+          idx,
+          frame.mSincePreviousFrame.count(),
+        };
+      },
+      mLiveData.mChartFrames.data(),
+      mLiveData.mChartFrames.size());
+  }
+  constexpr auto plotZero = [](int idx, void* user_data) -> ImPlotPoint {
+    return LiveData::PlotPoint {idx, 0};
+  };
+  constexpr auto plotAppCpu = [](int idx, void* user_data) -> ImPlotPoint {
+    const auto& frame = static_cast<LiveData::ChartFrames*>(user_data)->at(idx);
+    return LiveData::PlotPoint {
+      idx,
+      frame.mAppCpu.count(),
+    };
+  };
+  constexpr auto plotWaitCpu = [](int idx, void* user_data) -> ImPlotPoint {
+    const auto& frame = static_cast<LiveData::ChartFrames*>(user_data)->at(idx);
+    return LiveData::PlotPoint {
+      idx,
+      frame.mWaitCpu.count(),
+    };
+  };
+  constexpr auto plotRenderCpu = [](int idx, void* user_data) -> ImPlotPoint {
+    const auto& frame = static_cast<LiveData::ChartFrames*>(user_data)->at(idx);
+    return LiveData::PlotPoint {
+      idx,
+      frame.mRenderCpu.count(),
+    };
+  };
+  constexpr auto plotRuntimeCpu = [](int idx, void* user_data) -> ImPlotPoint {
+    const auto& frame = static_cast<LiveData::ChartFrames*>(user_data)->at(idx);
+    return LiveData::PlotPoint {
+      idx,
+      frame.mRuntimeCpu.count(),
+    };
+  };
+
+  if (const auto plot = ImGuiScoped::ImPlot("Frame Timings")) {
+    ImPlot::SetupAxis(ImAxis_X1);
+    SetupMicrosecondsAxis(ImAxis_Y1);
+    ImPlot::SetAxes(ImAxis_X1, ImAxis_Y1);
+
+    ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, 0.25f);
+    ImPlot::PlotShadedG(
+      "App CPU",
+      plotAppCpu,
+      mLiveData.mChartFrames.data(),
+      plotZero,
+      mLiveData.mChartFrames.data(),
+      mLiveData.mChartFrames.size());
+    ImPlot::PlotShadedG(
+      "Wait CPU",
+      plotWaitCpu,
+      mLiveData.mChartFrames.data(),
+      plotZero,
+      mLiveData.mChartFrames.data(),
+      mLiveData.mChartFrames.size());
+    ImPlot::PlotShadedG(
+      "Render CPU",
+      plotRenderCpu,
+      mLiveData.mChartFrames.data(),
+      plotZero,
+      mLiveData.mChartFrames.data(),
+      mLiveData.mChartFrames.size());
+    ImPlot::PlotShadedG(
+      "Runtime CPU",
+      plotRuntimeCpu,
+      mLiveData.mChartFrames.data(),
+      plotZero,
+      mLiveData.mChartFrames.data(),
+      mLiveData.mChartFrames.size());
+    ImPlot::PopStyleVar();
+
+    ImPlot::PlotLineG(
+      "App CPU",
+      plotAppCpu,
+      mLiveData.mChartFrames.data(),
+      mLiveData.mChartFrames.size());
+    ImPlot::PlotLineG(
+      "Wait CPU",
+      plotWaitCpu,
+      mLiveData.mChartFrames.data(),
+      mLiveData.mChartFrames.size());
+    ImPlot::PlotLineG(
+      "Render CPU",
+      plotRenderCpu,
+      mLiveData.mChartFrames.data(),
+      mLiveData.mChartFrames.size());
+    ImPlot::PlotLineG(
+      "Runtime CPU",
+      plotRuntimeCpu,
+      mLiveData.mChartFrames.data(),
+      mLiveData.mChartFrames.size());
+  }
+  ImPlot::ShowDemoWindow();
+}
+
+void MainWindow::UpdateLiveData() {
+  if (mSHM.IsValid()) {
+    if (mLiveData.mSHMFrameIndex == 0) {
+      mLiveData.mSHMFrameIndex = mSHM->mFrameCount;
+    }
+    for (auto& i = mLiveData.mSHMFrameIndex; i < mSHM->mFrameCount; ++i) {
+      const auto& frame = mSHM->GetFramePerformanceCounters(i);
+      mLiveData.mLatestMetricsAt = frame.mEndFrameStop;
+      mLiveData.mAggregator.Push(frame);
+    }
+  }
+
+  const auto scNow = std::chrono::steady_clock::now();
+
+  if (scNow - mLiveData.mLastChartFrameAt < LiveData::ChartInterval) {
+    return;
+  }
+  mLiveData.mLastChartFrameAt = scNow;
+
+  LARGE_INTEGER pcNow {};
+  QueryPerformanceCounter(&pcNow);
+
+  auto metrics = mLiveData.mAggregator.Flush();
+  if (metrics) {
+    mLiveData.mLatestMetrics = *metrics;
+  } else if (
+    gPCM.ToDuration(mLiveData.mLatestMetricsAt, pcNow)
+    <= LiveData::ChartInterval * 5) {
+    metrics = mLiveData.mLatestMetrics;
+  } else {
+    mLiveData.mChartFrames.push_back({});
+    return;
+  }
+
+  if (metrics->mFrameCount == 0) {
+    __debugbreak();
+  }
+
+  if (
+    metrics->mSincePreviousFrame
+    > std::chrono::seconds(LiveData::HistorySeconds)) {
+    return;
+  }
+
+  mLiveData.mChartFrames.push_back(*metrics);
 }

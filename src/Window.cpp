@@ -14,6 +14,7 @@
 
 #include <format>
 #include <stdexcept>
+#include <thread>
 
 #include "CheckHResult.hpp"
 #include "Win32Utils.hpp"
@@ -189,6 +190,7 @@ HWND Window::GetHWND() const noexcept {
 
 int Window::Run() noexcept {
   while (!mExitCode) {
+    const auto thisFrameStart = std::chrono::steady_clock::now();
     if (mPendingResize) {
       mRenderTargetView.reset();
       const auto width = std::get<0>(*mPendingResize);
@@ -230,7 +232,23 @@ int Window::Run() noexcept {
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
     mSwapChain->Present(1, 0);
 
-    WaitMessage();
+    const auto fps = this->GetTargetFPS();
+    if (!fps) {
+      WaitMessage();
+      continue;
+    }
+    const auto thisFrameTime
+      = std::chrono::steady_clock::now() - thisFrameStart;
+    const auto desiredWaitTime = (std::chrono::milliseconds(1000) / (*fps));
+    if (desiredWaitTime > thisFrameTime) {
+      continue;
+    }
+    MsgWaitForMultipleObjects(
+      0,
+      nullptr,
+      FALSE,
+      static_cast<DWORD>((desiredWaitTime - thisFrameTime).count()),
+      QS_ALLINPUT);
   }
 
   return *mExitCode;

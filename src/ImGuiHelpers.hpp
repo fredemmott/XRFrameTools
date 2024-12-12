@@ -3,6 +3,7 @@
 #pragma once
 
 #include <imgui.h>
+#include <implot.h>
 
 namespace ImGuiScoped {
 struct NonMoveable {
@@ -28,6 +29,16 @@ struct DisabledIf : NonMoveable {
 struct EnabledIf : DisabledIf {
   inline explicit EnabledIf(bool enabled) : DisabledIf(!enabled) {
   }
+};
+
+struct ID : NonMoveable {
+  inline ID(const char* name) {
+    ImGui::PushID(name);
+  }
+
+  inline ~ID() {
+    ImGui::PopID();
+  };
 };
 
 struct [[nodiscard]] Popup : NonMoveable {
@@ -71,4 +82,25 @@ struct [[nodiscard]] PopupModal : NonMoveable {
   bool mActive {};
 };
 
+struct [[nodiscard]] ImPlot {
+  ImPlot(
+    const char* title_id,
+    const ImVec2& size = ImVec2(-1, 0),
+    ImPlotFlags flags = 0) {
+    mActive = ::ImPlot::BeginPlot(title_id, size, flags);
+  }
+
+  ~ImPlot() {
+    if (mActive) {
+      ::ImPlot::EndPlot();
+    }
+  }
+
+  operator bool() const noexcept {
+    return mActive;
+  }
+
+ private:
+  bool mActive {};
+};
 }// namespace ImGuiScoped

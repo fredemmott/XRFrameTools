@@ -17,7 +17,8 @@ struct SHM final {
 
   std::array<FramePerformanceCounters, MaxFrameCount> mFrameMetrics;
 
-  auto& GetFramePerformanceCounters(uint64_t index) const noexcept {
+  [[nodiscard]]
+  auto& GetFramePerformanceCounters(const uint64_t index) const noexcept {
     return mFrameMetrics.at(index % SHM::MaxFrameCount);
   }
 };

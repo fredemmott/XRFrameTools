@@ -1,6 +1,7 @@
 add_executable(
   app
   WIN32
+  ContiguousRingBuffer.hpp
   GuiMain.cpp
   ImGuiHelpers.hpp
   Window.cpp Window.hpp
@@ -18,8 +19,10 @@ target_link_libraries(
   BinaryLogReader
   Config
   CSVWriter
+  SHMReader
   # vcpkg
   imgui::imgui
+  implot::implot
   Win32Utils
   # System libraries
   D3D11

@@ -2,17 +2,15 @@
 // SPDX-License-Identifier: MIT
 #include "PerformanceCounterMath.hpp"
 
-static LARGE_INTEGER GetPerformanceFrequency() {
-  LARGE_INTEGER ret {};
-  QueryPerformanceFrequency(&ret);
-  return ret;
-}
-static const auto gLiveFrequency = GetPerformanceFrequency();
-
 PerformanceCounterMath::PerformanceCounterMath(LARGE_INTEGER frequency)
   : mResolution(frequency) {
+  if (frequency.QuadPart == 0) {
+    throw std::out_of_range("Frequency can not be 0");
+  }
 }
 
 PerformanceCounterMath PerformanceCounterMath::CreateForLiveData() {
-  return {gLiveFrequency};
+  LARGE_INTEGER pf {};
+  QueryPerformanceFrequency(&pf);
+  return {pf};
 }
