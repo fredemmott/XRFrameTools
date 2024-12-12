@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: MIT
 #include "PerformanceCounterMath.hpp"
 
+#include <numeric>
 PerformanceCounterMath::PerformanceCounterMath(LARGE_INTEGER frequency)
-  : mResolution(frequency) {
+  : mResolution(frequency),
+    mMicrosGCD(std::gcd(frequency.QuadPart, MicrosPerSecond)) {
   if (frequency.QuadPart == 0) {
     throw std::out_of_range("Frequency can not be 0");
   }

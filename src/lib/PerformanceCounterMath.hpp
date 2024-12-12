@@ -23,8 +23,8 @@ class PerformanceCounterMath {
   inline std::chrono::microseconds ToDuration(
     const LARGE_INTEGER diff) const noexcept {
     auto duration = diff.QuadPart;
-    duration *= 1000000;
-    duration /= mResolution.QuadPart;
+    duration *= (MicrosPerSecond / mMicrosGCD);
+    duration /= (mResolution.QuadPart / mMicrosGCD);
     return std::chrono::microseconds {duration};
   }
 
@@ -42,5 +42,7 @@ class PerformanceCounterMath {
   static PerformanceCounterMath CreateForLiveData();
 
  private:
+  static constexpr int64_t MicrosPerSecond = 1000 * 1000;
   LARGE_INTEGER mResolution {};
+  int64_t mMicrosGCD {};
 };
