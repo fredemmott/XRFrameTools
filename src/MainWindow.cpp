@@ -16,6 +16,7 @@
 #include "CSVWriter.hpp"
 #include "CheckHResult.hpp"
 #include "ImGuiHelpers.hpp"
+#include "ImStackedAreaPlotter.hpp"
 #include "SHM.hpp"
 #include "Win32Utils.hpp"
 
@@ -537,53 +538,23 @@ void MainWindow::LiveDataSection() {
     SetupMicrosecondsAxis(ImAxis_Y1);
     ImPlot::SetAxes(ImAxis_X1, ImAxis_Y1);
 
-    ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, 0.25f);
-    ImPlot::PlotShadedG(
-      "App CPU",
-      plotAppCpu,
-      mLiveData.mChartFrames.data(),
-      plotZero,
-      mLiveData.mChartFrames.data(),
-      mLiveData.mChartFrames.size());
-    ImPlot::PlotShadedG(
-      "Wait CPU",
-      plotWaitCpu,
-      mLiveData.mChartFrames.data(),
-      plotZero,
-      mLiveData.mChartFrames.data(),
-      mLiveData.mChartFrames.size());
-    ImPlot::PlotShadedG(
-      "Render CPU",
-      plotRenderCpu,
-      mLiveData.mChartFrames.data(),
-      plotZero,
-      mLiveData.mChartFrames.data(),
-      mLiveData.mChartFrames.size());
-    ImPlot::PlotShadedG(
-      "Runtime CPU",
-      plotRuntimeCpu,
-      mLiveData.mChartFrames.data(),
-      plotZero,
-      mLiveData.mChartFrames.data(),
-      mLiveData.mChartFrames.size());
-    ImPlot::PopStyleVar();
-
-    ImPlot::PlotLineG(
+    ImStackedAreaPlotter sap;
+    sap.Plot(
       "App CPU",
       plotAppCpu,
       mLiveData.mChartFrames.data(),
       mLiveData.mChartFrames.size());
-    ImPlot::PlotLineG(
+    sap.Plot(
       "Wait CPU",
       plotWaitCpu,
       mLiveData.mChartFrames.data(),
       mLiveData.mChartFrames.size());
-    ImPlot::PlotLineG(
+    sap.Plot(
       "Render CPU",
       plotRenderCpu,
       mLiveData.mChartFrames.data(),
       mLiveData.mChartFrames.size());
-    ImPlot::PlotLineG(
+    sap.Plot(
       "Runtime CPU",
       plotRuntimeCpu,
       mLiveData.mChartFrames.data(),

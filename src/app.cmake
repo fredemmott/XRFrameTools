@@ -4,6 +4,7 @@ add_executable(
   ContiguousRingBuffer.hpp
   GuiMain.cpp
   ImGuiHelpers.hpp
+  ImStackedAreaPlotter.cpp ImStackedAreaPlotter.hpp
   Window.cpp Window.hpp
   MainWindow.cpp MainWindow.hpp
   utf8.manifest
