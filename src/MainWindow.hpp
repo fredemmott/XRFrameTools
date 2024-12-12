@@ -8,6 +8,7 @@
 #include "CSVWriter.hpp"
 #include "Config.hpp"
 #include "ContiguousRingBuffer.hpp"
+#include "ImStackedAreaPlotter.hpp"
 #include "MetricsAggregator.hpp"
 #include "SHMReader.hpp"
 #include "Window.hpp"
@@ -38,6 +39,8 @@ class MainWindow final : public Window {
   void UpdateLiveData();
 
   SHMReader mSHM;
+  ImStackedAreaPlotter::Kind mFrameTimingPlotKind {
+    ImStackedAreaPlotter::Kind::StackedArea};
 
   struct LiveData {
     LiveData();

@@ -501,9 +501,6 @@ void MainWindow::LiveDataSection() {
       mLiveData.mChartFrames.data(),
       mLiveData.mChartFrames.size());
   }
-  constexpr auto plotZero = [](int idx, void* user_data) -> ImPlotPoint {
-    return LiveData::PlotPoint {idx, 0};
-  };
   constexpr auto plotAppCpu = [](int idx, void* user_data) -> ImPlotPoint {
     const auto& frame = static_cast<LiveData::ChartFrames*>(user_data)->at(idx);
     return LiveData::PlotPoint {
@@ -538,7 +535,7 @@ void MainWindow::LiveDataSection() {
     SetupMicrosecondsAxis(ImAxis_Y1);
     ImPlot::SetAxes(ImAxis_X1, ImAxis_Y1);
 
-    ImStackedAreaPlotter sap;
+    ImStackedAreaPlotter sap {mFrameTimingPlotKind};
     sap.Plot(
       "App CPU",
       plotAppCpu,
@@ -560,7 +557,16 @@ void MainWindow::LiveDataSection() {
       mLiveData.mChartFrames.data(),
       mLiveData.mChartFrames.size());
   }
-  ImPlot::ShowDemoWindow();
+
+  using PlotKind = ImStackedAreaPlotter::Kind;
+  if (ImGui::RadioButton(
+        "Stacked area", mFrameTimingPlotKind == PlotKind::StackedArea)) {
+    mFrameTimingPlotKind = PlotKind::StackedArea;
+  }
+  ImGui::SameLine();
+  if (ImGui::RadioButton("Lines", mFrameTimingPlotKind == PlotKind::Lines)) {
+    mFrameTimingPlotKind = PlotKind::Lines;
+  }
 }
 
 void MainWindow::UpdateLiveData() {
