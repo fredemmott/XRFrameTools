@@ -3,7 +3,6 @@
 
 #include "Window.hpp"
 
-#include <dwmapi.h>
 #include <dxgi1_3.h>
 #include <imgui.h>
 #include <imgui_impl_dx11.h>
@@ -59,14 +58,6 @@ void Window::InitializeHWND(
     throw std::runtime_error(
       std::format("Failed to create window: {}", GetLastError()));
   }
-
-  BOOL darkMode {true};
-// Support building with the Windows 10 SDK
-#ifndef DWMWA_USE_IMMERSIVE_DARK_MODE
-#define DWMWA_USE_IMMERSIVE_DARK_MODE 20
-#endif
-  DwmSetWindowAttribute(
-    mHwnd.get(), DWMWA_USE_IMMERSIVE_DARK_MODE, &darkMode, sizeof(darkMode));
 }
 void Window::InitializeDirect3D() {
   UINT d3dFlags = D3D11_CREATE_DEVICE_SINGLETHREADED;
