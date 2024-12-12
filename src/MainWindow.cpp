@@ -537,13 +537,13 @@ void MainWindow::LiveDataSection() {
 
     ImStackedAreaPlotter sap {mFrameTimingPlotKind};
     sap.Plot(
-      "App CPU",
-      plotAppCpu,
+      "Runtime CPU",
+      plotRuntimeCpu,
       mLiveData.mChartFrames.data(),
       mLiveData.mChartFrames.size());
     sap.Plot(
-      "Wait CPU",
-      plotWaitCpu,
+      "App CPU",
+      plotAppCpu,
       mLiveData.mChartFrames.data(),
       mLiveData.mChartFrames.size());
     sap.Plot(
@@ -552,8 +552,8 @@ void MainWindow::LiveDataSection() {
       mLiveData.mChartFrames.data(),
       mLiveData.mChartFrames.size());
     sap.Plot(
-      "Runtime CPU",
-      plotRuntimeCpu,
+      "Wait CPU",
+      plotWaitCpu,
       mLiveData.mChartFrames.data(),
       mLiveData.mChartFrames.size());
   }
