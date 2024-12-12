@@ -42,6 +42,12 @@ class MainWindow final : public Window {
   ImStackedAreaPlotter::Kind mFrameTimingPlotKind {
     ImStackedAreaPlotter::Kind::StackedArea};
 
+  struct LiveApp {
+    DWORD mProcessID {};
+    std::filesystem::path mExecutablePath;
+  };
+  LiveApp mLiveApp;
+
   struct LiveData {
     LiveData();
     template <class T>

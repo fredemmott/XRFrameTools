@@ -442,6 +442,27 @@ void MainWindow::LiveDataSection() {
     this->UpdateLiveData();
   }
 
+  if (mSHM.IsValid() && mSHM->mWriterProcessID != mLiveApp.mProcessID) {
+    mLiveApp = {.mProcessID = mSHM->mWriterProcessID};
+
+    wil::unique_handle process {OpenProcess(
+      PROCESS_QUERY_LIMITED_INFORMATION, FALSE, mSHM->mWriterProcessID)};
+    if (process) {
+      mLiveApp.mExecutablePath
+        = wil::QueryFullProcessImageNameW(process.get()).get();
+    }
+  }
+
+  ImGui::SameLine();
+  if (mLiveApp.mExecutablePath.empty()) {
+    ImGui::TextDisabled("No current OpenXR application detected");
+  } else {
+    ImGui::TextDisabled(
+      "Showing PID %ld: %s",
+      mLiveApp.mProcessID,
+      mLiveApp.mExecutablePath.string().c_str());
+  }
+
   const auto slowestFrameMicroseconds
     = std::ranges::max_element(mLiveData.mChartFrames, {}, [](const auto& it) {
         return it.mSincePreviousFrame.count();

@@ -22,6 +22,11 @@ SHMWriter::~SHMWriter() {
   if (!shm) {
     return;
   }
+
+  if (shm->mWriterCount == 1) {
+    shm->mWriterProcessID = {};
+  }
+
   InterlockedDecrement64(&shm->mWriterCount);
 }
 
