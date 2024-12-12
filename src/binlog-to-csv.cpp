@@ -18,14 +18,14 @@ namespace {
 struct Arguments {
   std::filesystem::path mInput;
   std::filesystem::path mOutput;
-  size_t mAggregateBatch {CSVWriter::DefaultFramesPerRow};
+  size_t mFramesPerRow {CSVWriter::DefaultFramesPerRow};
 };
 
 void ShowUsage(std::FILE* stream, std::string_view exe) {
   std::println(
     stream,
-    "USAGE: {} [--help] [--output PATH] [--aggregate COUNT] INPUT_PATH\n\n"
-    "  --aggregate COUNT\n\n"
+    "USAGE: {} [--help] [--output PATH] [--frames-per-row COUNT] INPUT_PATH\n\n"
+    "  --frames-per-row COUNT\n\n"
     "    number of frames to include in each row; default {}",
     std::filesystem::path {exe}.stem().string(),
     CSVWriter::DefaultFramesPerRow);
@@ -68,23 +68,23 @@ std::expected<Arguments, int> ParseArguments(int argc, char* argv[]) {
   for (size_t i = 1; i < argc; ++i) {
     const std::string_view arg {argv[i]};
     // --help is handled above
-    if (parse && arg == "--aggregate") {
+    if (parse && arg == "--frames-per-row") {
       ++i;
       if (i >= argc) {
-        std::println(stderr, "--aggregate requires a value");
+        std::println(stderr, "--frames-per-row requires a value");
         return std::unexpected {EXIT_FAILURE};
       }
       std::string stringValue {argv[i]};
       try {
         const auto value = std::stoi(stringValue);
         if (value < 1) {
-          std::println(stderr, "--aggregate value must be at least 1");
+          std::println(stderr, "--frames-per-row value must be at least 1");
           return std::unexpected {EXIT_FAILURE};
         }
-        ret.mAggregateBatch = static_cast<size_t>(value);
+        ret.mFramesPerRow = static_cast<size_t>(value);
         continue;
       } catch (...) {
-        std::println(stderr, "--aggregate value must be a number");
+        std::println(stderr, "--frames-per-row value must be a number");
         return std::unexpected {EXIT_FAILURE};
       }
     }
@@ -210,7 +210,7 @@ int main(int argc, char** argv) {
   const auto out
     = outputFile ? outputFile.get() : GetStdHandle(STD_OUTPUT_HANDLE);
   const auto result
-    = CSVWriter::Write(std::move(reader).value(), out, args->mAggregateBatch);
+    = CSVWriter::Write(std::move(reader).value(), out, args->mFramesPerRow);
 
   if (result.mFrameCount == 0) {
     std::println(stderr, "❌ log doesn't contain any frames");
