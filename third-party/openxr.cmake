@@ -1,5 +1,4 @@
 include(ExternalProject)
-
 ExternalProject_Add(
   openxr_ep
   URL "https://github.com/KhronosGroup/OpenXR-SDK/archive/refs/tags/release-1.1.43.zip"
@@ -23,8 +22,5 @@ target_include_directories(
   "${SOURCE_DIR}/include"
 )
 
-install(
-  FILES "${SOURCE_DIR}/LICENSE"
-  TYPE DOC
-  RENAME "LICENSE-ThirdParty-OpenXR SDK.txt"
-)
+include(add_copyright_file)
+add_copyright_file("OpenXR SDK" "${SOURCE_DIR}/LICENSE")

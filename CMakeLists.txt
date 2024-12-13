@@ -24,6 +24,8 @@ set(
 
 project(XRFrameTools VERSION 0.0.1 LANGUAGES CXX)
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
 block(
   PROPAGATE
   CMAKE_PDB_OUTPUT_DIRECTORY
@@ -46,3 +48,5 @@ endblock()
 
 add_subdirectory("third-party")
 add_subdirectory("src")
+
+add_copyright_file(SELF LICENSE)
