@@ -15,35 +15,62 @@ MetricsAggregator::MetricsAggregator(const PerformanceCounterMath& pc)
   : mPerformanceCounterMath(pc) {
 }
 
+static void AddIfOrdered(
+  const PerformanceCounterMath& pcm,
+  std::chrono::microseconds* acc,
+  LARGE_INTEGER* begin,
+  LARGE_INTEGER end,
+  LARGE_INTEGER newBegin) {
+  if (begin->QuadPart > end.QuadPart) {
+    return;
+  }
+  *acc += pcm.ToDuration(*begin, end);
+  *begin = newBegin;
+}
+
 void MetricsAggregator::Push(const FramePerformanceCounters& fpc) {
   ++mAccumulator.mFrameCount;
 
   const auto pcm = mPerformanceCounterMath;
+  std::chrono::microseconds appCpu {};
+
+  if (mPreviousFrameEndTime.QuadPart > fpc.mEndFrameStart.QuadPart) {
+#ifndef NDEBUG
+    //__debugbreak();
+#endif
+    return;
+  }
+
+  const auto interval
+    = pcm.ToDuration(mPreviousFrameEndTime, fpc.mEndFrameStop);
 
   if (mPreviousFrameEndTime.QuadPart) {
-    mAccumulator.mSincePreviousFrame
-      += pcm.ToDuration(mPreviousFrameEndTime, fpc.mEndFrameStop);
-    if (fpc.mWaitFrameStart.QuadPart) {
-      mAccumulator.mAppCpu
-        += pcm.ToDuration(mPreviousFrameEndTime, fpc.mWaitFrameStart);
-    }
-  }
-  mPreviousFrameEndTime = fpc.mEndFrameStop;
+    mAccumulator.mSincePreviousFrame += interval;
 
-  if (!fpc.mWaitFrameStart.QuadPart) {
+    auto start = mPreviousFrameEndTime;
+    AddIfOrdered(pcm, &appCpu, &start, fpc.mWaitFrameStart, fpc.mWaitFrameStop);
+    AddIfOrdered(
+      pcm, &appCpu, &start, fpc.mBeginFrameStart, fpc.mBeginFrameStop);
+    // Begin -> End is 'render CPU'
+  }
+  if (!(fpc.mWaitFrameStart.QuadPart)) {
     mHavePartialData = true;
   }
+
+  mPreviousFrameEndTime = fpc.mEndFrameStop;
 
   if (mHavePartialData) {
     return;
   }
 
-  mAccumulator.mAppCpu
-    += pcm.ToDuration(fpc.mWaitFrameStop, fpc.mBeginFrameStart);
-  mAccumulator.mAppCpu
-    += pcm.ToDuration(fpc.mBeginFrameStop, fpc.mEndFrameStart);
-
   const FrameMetrics fm {pcm, fpc};
+  if (appCpu > interval) {
+#ifndef NDEBUG
+    __debugbreak();
+#endif
+    appCpu = interval - (fm.mRenderCpu + fm.mWaitCpu + fm.mRenderCpu);
+  }
+  mAccumulator.mAppCpu += appCpu;
 
 #define ADD_METRIC(X) mAccumulator.m##X += fm.m##X;
   MEAN_METRICS(ADD_METRIC)
