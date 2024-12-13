@@ -8,7 +8,7 @@ using File = WixSharp.File;
 
 [assembly: InternalsVisibleTo(assemblyName: "XRFrameTools_Installer.aot")] // assembly name + '.aot suffix
 
-async Task<int> CreateMsi(DirectoryInfo inputRoot, string? signingKeyId, string? timestampServer)
+async Task<int> CreateMsi(DirectoryInfo inputRoot, string? signingKeyId, string? timestampServer, FileInfo? stampFile)
 {
     if (!System.IO.File.Exists($"{inputRoot}/bin/XRFrameTools.exe"))
     {
@@ -73,7 +73,12 @@ async Task<int> CreateMsi(DirectoryInfo inputRoot, string? signingKeyId, string?
         project.OutFileName += "-UNSIGNED";
     }
 
-    project.BuildMsi();
+    var outFile = project.BuildMsi();
+    if (stampFile != null)
+    {
+        System.IO.File.WriteAllText(stampFile.FullName, $"{outFile}\n");
+        Console.WriteLine($"Wrote output path '{outFile}' to `{stampFile.FullName}`");
+    }
 
     return 0;
 }
@@ -87,11 +92,15 @@ var signingKeyArg = new Option<string>(
 var timestampServerArg = new Option<string>(
     name: "--timestamp-server",
     description: "Code signing timestamp server");
+var stampFileArg = new Option<FileInfo>(
+    name: "--stamp-file",
+    description: "The full path to the produced executable will be written here on success");
 
 var command = new RootCommand("Build the MSI");
 command.Add(inputRootArg);
 command.Add(signingKeyArg);
 command.Add(timestampServerArg);
+command.Add(stampFileArg);
 command.SetHandler(
-    CreateMsi, inputRootArg, signingKeyArg, timestampServerArg);
+    CreateMsi, inputRootArg, signingKeyArg, timestampServerArg, stampFileArg);
 return await command.InvokeAsync(args);
