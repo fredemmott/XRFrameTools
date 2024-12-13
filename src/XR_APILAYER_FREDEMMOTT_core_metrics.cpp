@@ -175,7 +175,7 @@ template <class F, auto Next, auto Layer>
 struct XRFuncDelegator;
 
 template <class TRet, class... TArgs, auto LayerFn, auto NextFn>
-struct XRFuncDelegator<TRet (*)(TArgs...), LayerFn, NextFn> {
+struct XRFuncDelegator<TRet(XRAPI_PTR*)(TArgs...), LayerFn, NextFn> {
   static XRAPI_ATTR TRet XRAPI_CALL Invoke(TArgs... args) noexcept {
     if (!*NextFn) {
       return XR_ERROR_FUNCTION_UNSUPPORTED;
