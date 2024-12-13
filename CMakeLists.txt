@@ -16,6 +16,8 @@ add_compile_definitions(
   "WIN32_LEAN_AND_MEAN"
 )
 
+include(cmake/hybrid-crt.cmake)
+
 set(
   CMAKE_TOOLCHAIN_FILE
   "${CMAKE_SOURCE_DIR}/third-party/vcpkg/scripts/buildsystems/vcpkg.cmake"
