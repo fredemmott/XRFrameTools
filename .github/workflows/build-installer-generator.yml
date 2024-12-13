@@ -1,9 +1,5 @@
 on:
   workflow_call:
-    inputs:
-      output-prefix:
-        required: true
-        type: string
 jobs:
   installer-generator:
     name: "Installer Generator"
@@ -20,5 +16,5 @@ jobs:
             --output "${{runner.temp}}/installer"
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{inputs.output-prefix}}-installer-generator
+          name: installer-generator
           path: ${{runner.temp}}/installer

@@ -6,14 +6,14 @@ jobs:
     uses: "./.github/workflows/build.yml"
     with:
       name: build64
-      output-prefix: XRFrameTools-build64-GHA${{github.run_number}}
+      output-prefix: build64
       vcpkg-architecture: x64
   build32:
     name: "Build 32-bit components"
     uses: "./.github/workflows/build.yml"
     with:
       name: build32
-      output-prefix: XRFrameTools-build32-GHA${{github.run_number}}
+      output-prefix: build32
       cmake-architecture: Win32
       vcpkg-architecture: x86
       target: api-layers
@@ -21,5 +21,7 @@ jobs:
   installer-generator:
     name: Build installer generator
     uses: "./.github/workflows/build-installer-generator.yml"
-    with:
-      output-prefix: XRFrameTools-GHA${{github.run_number}}
+  combine:
+    name: Combine artifacts
+    needs: [ build32, build64, installer-generator ]
+    uses: "./.github/workflows/combine.yml"

@@ -1,0 +1,46 @@
+name: Combine
+on: [ workflow_call ]
+jobs:
+  combine:
+    name: "Combine artifacts"
+    runs-on: windows-latest
+    steps:
+      - uses: actions/download-artifact@v4
+      - name: List artifacts
+        run: Get-ChildItem -recurse
+      - name: Make bundles
+        shell: pwsh
+        run: |
+          mkdir bundle
+          mv build64 bundle/INSTALL_ROOT
+          Move-Item build32/lib/* bundle/INSTALL_ROOT/lib/
+          mv installer-generator/* bundle/
+          
+          Move-Item build64-debug-symbols debug-bundle
+          Move-Item build32-debug-symbols/* debug-bundle/
+      - name: Upload bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-GHA${{github.run_number}}
+          path: bundle
+      - name: Upload debug bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: XRFrameTools-DebugSymbols-GHA${{github.run_number}}
+          path: debug-bundle
+      - name: install WiX
+        run: dotnet tool install --global wix
+      - name: Build installer
+        shell: pwsh
+        id: build-installer
+        working-directory: bundle
+        run: |
+          ./XRFrameTools-Installer.exe `
+            "$(Get-Location)/INSTALL_ROOT" `
+            --stamp-file ${{github.workspace}}/installer.stamp
+          Add-Content $env:GITHUB_OUTPUT "installer-path=$(Get-Content ${{github.workspace}}/installer.stamp)"
+      - name: Upload unsigned installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: XRFrameTools-GHA${{github.run_number}}
+          path: ${{steps.build-installer.outputs.installer-path}}

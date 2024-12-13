@@ -77,7 +77,7 @@ jobs:
             $extraArgs += @('--component', '${{inputs.component}}')
           }
           cmake --install . --config ${{matrix.build-type}} --prefix install-prefix @extraArgs
-      - name: Upload installable artifacts
+      - name: Upload binaries
         uses: actions/upload-artifact@v4
         if: matrix.build-type != 'Debug'
         with:
