@@ -1,0 +1,91 @@
+on:
+  workflow_call:
+    inputs:
+      name:
+        required: true
+        type: string
+      output-prefix:
+        required: true
+        type: string
+      cmake-architecture:
+        required: false
+        type: string
+        description: Passed to `cmake -A VALUE`
+      vcpkg-architecture:
+        required: true
+        type: string
+        description: First component of vcpkg triplet
+      target:
+        required: false
+        type: string
+        description: Target for cmake --build
+      component:
+        required: false
+        type: string
+        description: Component for cmake --install
+jobs:
+  build:
+    name: "${{inputs.name}}/${{matrix.build-type}}"
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        build-type: [ RelWithDebInfo, Debug ]
+    env:
+      VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
+    steps:
+      - name: Export GitHub Actions cache environment variables
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Configure
+        shell: pwsh
+        run: |
+          mkdir build
+          cd build
+          $extraArgs = @()
+          if ("${{inputs.cmake-architecture}}" -ne "") {
+            $extraArgs += @('-A', '${{inputs.cmake-architecture}}')
+          }
+          cmake .. `
+            "-DCMAKE_BUILD_TYPE=${{matrix.build-type}}" `
+            -DVCPKG_TARGET_TRIPLET=${{inputs.vcpkg-architecture}}-windows${{matrix.build-type == 'RelWithDebInfo' && '-static' || ''}} `
+            @extraArgs
+      - name: Build
+        shell: pwsh
+        working-directory: build
+        run: |
+          $extraArgs = @()
+          if ("${{inputs.target}}" -ne "") {
+            $extraArgs += @('--target', '${{inputs.target}}')
+          }
+          cmake `
+            --build . `
+            --config ${{matrix.build-type}} `
+            --parallel `
+            @extraArgs
+      - name: Install
+        shell: pwsh
+        working-directory: build
+        run: |
+          $extraArgs = @()
+          if ("${{inputs.component}}" -ne "") {
+            $extraArgs += @('--component', '${{inputs.component}}')
+          }
+          cmake --install . --config ${{matrix.build-type}} --prefix install-prefix @extraArgs
+      - name: Upload installable artifacts
+        uses: actions/upload-artifact@v4
+        if: matrix.build-type != 'Debug'
+        with:
+          name: ${{inputs.output-prefix}}
+          path: build/install-prefix
+      - name: Upload debug symbols
+        uses: actions/upload-artifact@v4
+        if: matrix.build-type != 'Debug'
+        with:
+          name: ${{inputs.output-prefix}}-debug-symbols
+          path: build/out/${{matrix.build-type}}/pdb

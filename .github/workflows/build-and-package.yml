@@ -1,6 +1,20 @@
 name: Build and Package
 on: [ push ]
 jobs:
-  build-and-package:
+  build64:
     name: "Build 64-bit components"
-    uses: "./.github/workflows/build64.yml"
+    uses: "./.github/workflows/build.yml"
+    with:
+      name: build64
+      output-prefix: XRFrameTools-build64-GHA${{github.run_number}}
+      vcpkg-architecture: x64
+  build32:
+    name: "Build 32-bit components"
+    uses: "./.github/workflows/build.yml"
+    with:
+      name: build32
+      output-prefix: XRFrameTools-build32-GHA${{github.run_number}}
+      cmake-architecture: Win32
+      vcpkg-architecture: x86
+      target: api-layers
+      component: api-layers
