@@ -18,3 +18,8 @@ jobs:
       vcpkg-architecture: x86
       target: api-layers
       component: api-layers
+  installer-generator:
+    name: Build installer generator
+    uses: "./.github/workflows/build-installer-generator.yml"
+    with:
+      output-prefix: XRFrameTools-GHA${{github.run_number}}

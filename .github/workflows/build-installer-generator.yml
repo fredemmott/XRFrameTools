@@ -1,0 +1,24 @@
+on:
+  workflow_call:
+    inputs:
+      output-prefix:
+        required: true
+        type: string
+jobs:
+  installer-generator:
+    name: "Installer Generator"
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        id: build
+        working-directory: XRFrameTools-installer
+        shell: pwsh
+        run: |
+          dotnet publish `
+            --configuration Release `
+            --output "${{runner.temp}}/installer"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{inputs.output-prefix}}-installer-generator
+          path: ${{runner.temp}}/installer
