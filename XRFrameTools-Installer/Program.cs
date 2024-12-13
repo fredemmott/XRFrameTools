@@ -7,7 +7,6 @@ using File = WixSharp.File;
 
 [assembly: InternalsVisibleTo(assemblyName: "XRFrameTools_Installer.aot")] // assembly name + '.aot suffix
 
-
 async Task<int> CreateMSI(DirectoryInfo inputRoot)
 {
     if (!System.IO.File.Exists($"{inputRoot}/bin/XRFrameTools.exe"))
@@ -25,11 +24,18 @@ async Task<int> CreateMSI(DirectoryInfo inputRoot)
                 new Dir("bin", new Files("bin/*.*")),
                 new Dir("lib", new Files("lib/*.*")),
                 new Dir("share", new Files("share/*.*")),
-                    new Files(installerResources, @"installer/*.*")));
+                new Files(installerResources, @"installer/*.*")));
+
+    const string apiLayersKey = @"SOFTWARE\Khronos\OpenXR\1\ApiLayers\Implicit";
+    foreach (var file in inputRoot.GetDirectories("lib").First().GetFiles("XR_APILAYER_*64.json"))
+    {
+        project.AddRegValue(new RegValue(RegistryHive.LocalMachine, apiLayersKey,
+            $"[INSTALLDIR]lib\\{file.Name}", 0));
+    }
 
     project.GUID = Guid.Parse("e3334ff2-9b8f-4f3c-ba25-5f965f3b7dc9");
     project.Platform = Platform.x64;
-    
+
     project.SourceBaseDir = inputRoot.FullName;
 
     project.ControlPanelInfo.Manufacturer = "Fred Emmott";
