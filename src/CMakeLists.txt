@@ -54,16 +54,6 @@ target_link_libraries(
   SHMWriter
 )
 
-add_executable(cli cli.cpp)
-set_target_properties(cli PROPERTIES OUTPUT_NAME "XRFrameTools-cli")
-target_link_libraries(
-  cli
-  PRIVATE
-  FrameMetrics
-  PerformanceCounters
-  SHMReader
-)
-
 add_executable(
   binlog-to-csv
   binlog-to-csv.cpp
