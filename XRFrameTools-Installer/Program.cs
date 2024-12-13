@@ -33,7 +33,21 @@ async Task<int> CreateMsi(DirectoryInfo inputRoot, string? signingKeyId, string?
         project.AddRegValue(new RegValue(RegistryHive.LocalMachine, apiLayersKey,
             $"[INSTALLDIR]lib\\{file.Name}", 0));
     }
-    
+
+    const string appPathsRoot = @"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths";
+    project.AddRegValues(
+        new RegValue(
+            RegistryHive.LocalMachine,
+            appPathsRoot + @"\XRFrameTools.exe",
+            string.Empty,
+            @"[INSTALLDIR]bin\XRFrameTools.exe"),
+        new RegValue(
+            RegistryHive.LocalMachine,
+            appPathsRoot + @"\XRFrameTools-binlog-to-csv.exe",
+            string.Empty,
+            @"[INSTALLDIR]bin\binlog-to-csv.exe")
+    );
+
     project.GUID = Guid.Parse("e3334ff2-9b8f-4f3c-ba25-5f965f3b7dc9");
     project.Platform = Platform.x64;
 
@@ -73,7 +87,7 @@ var signingKeyArg = new Option<string>(
 var timestampServerArg = new Option<string>(
     name: "--timestamp-server",
     description: "Code signing timestamp server");
-    
+
 var command = new RootCommand("Build the MSI");
 command.Add(inputRootArg);
 command.Add(signingKeyArg);
