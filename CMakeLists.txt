@@ -50,5 +50,6 @@ endblock()
 
 add_subdirectory("third-party")
 add_subdirectory("src")
+add_subdirectory("XRFrameTools-Installer")
 
 add_copyright_file(SELF LICENSE)
