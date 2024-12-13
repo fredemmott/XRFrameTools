@@ -3,11 +3,12 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices.Marshalling;
 using WixSharp;
 using WixSharp.CommonTasks;
+using WixSharp.Controls;
 using File = WixSharp.File;
 
 [assembly: InternalsVisibleTo(assemblyName: "XRFrameTools_Installer.aot")] // assembly name + '.aot suffix
 
-async Task<int> CreateMSI(DirectoryInfo inputRoot)
+async Task<int> CreateMsi(DirectoryInfo inputRoot, string? signingKeyId, string? timestampServer)
 {
     if (!System.IO.File.Exists($"{inputRoot}/bin/XRFrameTools.exe"))
     {
@@ -32,7 +33,7 @@ async Task<int> CreateMSI(DirectoryInfo inputRoot)
         project.AddRegValue(new RegValue(RegistryHive.LocalMachine, apiLayersKey,
             $"[INSTALLDIR]lib\\{file.Name}", 0));
     }
-
+    
     project.GUID = Guid.Parse("e3334ff2-9b8f-4f3c-ba25-5f965f3b7dc9");
     project.Platform = Platform.x64;
 
@@ -41,16 +42,42 @@ async Task<int> CreateMSI(DirectoryInfo inputRoot)
     project.ControlPanelInfo.Manufacturer = "Fred Emmott";
     project.LicenceFile = "installer/LICENSE.rtf";
 
+    if (signingKeyId != null)
+    {
+        project.DigitalSignature = new DigitalSignature
+        {
+            CertificateId = signingKeyId,
+            CertificateStore = StoreType.sha1Hash,
+            HashAlgorithm = HashAlgorithmType.sha256,
+            Description = project.OutFileName,
+            TimeUrl = (timestampServer == null) ? null : new Uri(timestampServer),
+        };
+        project.SignAllFiles = true;
+    }
+    else
+    {
+        project.OutFileName += "-UNSIGNED";
+    }
+
     project.BuildMsi();
 
     return 0;
 }
 
-var inputArg = new Argument<DirectoryInfo>(
+var inputRootArg = new Argument<DirectoryInfo>(
     name: "INPUT_ROOT",
     description: "Location of files to include in the installer");
+var signingKeyArg = new Option<string>(
+    name: "--signing-key",
+    description: "Code signing key ID");
+var timestampServerArg = new Option<string>(
+    name: "--timestamp-server",
+    description: "Code signing timestamp server");
+    
 var command = new RootCommand("Build the MSI");
-command.Add(inputArg);
+command.Add(inputRootArg);
+command.Add(signingKeyArg);
+command.Add(timestampServerArg);
 command.SetHandler(
-    CreateMSI, inputArg);
+    CreateMsi, inputRootArg, signingKeyArg, timestampServerArg);
 return await command.InvokeAsync(args);
