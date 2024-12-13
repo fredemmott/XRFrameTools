@@ -74,4 +74,7 @@ class MainWindow final : public Window {
 
     ChartFrames mChartFrames {BufferSize};
   } mLiveData;
+  std::mutex mLiveDataMutex;
+  std::jthread mLiveDataThread;
+  void UpdateLiveDataThreadEntry(const std::stop_token);
 };

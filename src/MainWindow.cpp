@@ -24,13 +24,33 @@ static const auto gPCM = PerformanceCounterMath::CreateForLiveData();
 
 MainWindow::MainWindow(HINSTANCE instance)
   : Window(instance, L"XRFrameTools"),
-    mBaseConfig(Config::GetUserDefaults(Config::Access::ReadWrite)) {
+    mBaseConfig(Config::GetUserDefaults(Config::Access::ReadWrite)),
+    mLiveDataThread(
+      std::bind_front(&MainWindow::UpdateLiveDataThreadEntry, this)) {
 }
 
 MainWindow::~MainWindow() {
 }
 
 MainWindow::LiveData::LiveData() : mAggregator(gPCM) {
+}
+void MainWindow::UpdateLiveDataThreadEntry(const std::stop_token tok) {
+  const auto interruptEvent
+    = wil::unique_handle {CreateEventW(nullptr, FALSE, FALSE, nullptr)};
+  const std::stop_callback interrupt {
+    tok, std::bind_front(&SetEvent, interruptEvent.get())};
+
+  while (!tok.stop_requested()) {
+    if (!mLiveData.mEnabled) {
+      WaitForSingleObject(interruptEvent.get(), 1000);
+    }
+
+    {
+      std::unique_lock lock(mLiveDataMutex);
+      this->UpdateLiveData();
+    }
+    WaitForSingleObject(interruptEvent.get(), 1000 / LiveData::ChartFPS);
+  }
 }
 
 template <
@@ -431,16 +451,13 @@ struct MainWindow::LiveData::PlotPoint : ImPlotPoint {
 };
 
 void MainWindow::LiveDataSection() {
+  std::unique_lock lock(mLiveDataMutex);
   const ImGuiScoped::ID idScope {"Live data"};
 
   // "SpeedHigh" glyph
   ImGui::SeparatorText("\uec4aLive data");
 
   ImGui::Checkbox("Enable updates", &mLiveData.mEnabled);
-
-  if (mLiveData.mEnabled) {
-    this->UpdateLiveData();
-  }
 
   if (mSHM.IsValid() && mSHM->mWriterProcessID != mLiveApp.mProcessID) {
     mLiveApp = {.mProcessID = mSHM->mWriterProcessID};
