@@ -235,7 +235,12 @@ int Window::Run() noexcept {
 
     ImGui::Render();
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
-    mSwapChain->Present(1, 0);
+    {
+      TraceLoggingThreadActivity<gTraceProvider> activity;
+      TraceLoggingWriteStart(activity, "Window::Run/Present");
+      mSwapChain->Present(1, 0);
+      TraceLoggingWriteStop(activity, "Window::Run/Present");
+    }
 
     TraceLoggingThreadActivity<gTraceProvider> waitActivity;
     TraceLoggingWriteStart(waitActivity, "Window::Run/wait");
