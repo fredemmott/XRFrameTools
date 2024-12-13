@@ -4,6 +4,11 @@ include(output-directories)
 add_custom_target(licenses ALL)
 
 function(add_copyright_file PACKAGE_NAME SOURCE)
+  set(options)
+  set(oneValueArgs)
+  set(multiValueArgs DEPENDS)
+  cmake_parse_arguments(arg "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+
   cmake_path(ABSOLUTE_PATH SOURCE NORMALIZE)
 
   if("${PACKAGE_NAME}" STREQUAL "SELF")
@@ -25,6 +30,7 @@ function(add_copyright_file PACKAGE_NAME SOURCE)
     -E copy_if_different
     "${SOURCE}"
     "${BUILD_TREE_TARGET}"
+    DEPENDS "${arg_DEPENDS}"
     VERBATIM
   )
   string(MAKE_C_IDENTIFIER "license-gen-${PACKAGE_NAME}" SUBTARGET)
