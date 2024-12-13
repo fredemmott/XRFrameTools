@@ -21,10 +21,12 @@ function(add_copyright_file PACKAGE_NAME SOURCE)
   set(BUILD_TREE_TARGET "${BUILD_TREE_TARGET_DIR}/LICENSE")
   cmake_path(ABSOLUTE_PATH BUILD_TREE_TARGET NORMALIZE)
 
-  file(MAKE_DIRECTORY "${BUILD_TREE_TARGET_DIR}")
   add_custom_command(
     OUTPUT
     "${BUILD_TREE_TARGET}"
+    COMMAND
+    "${CMAKE_COMMAND}"
+    -E make_directory "${BUILD_TREE_TARGET_DIR}"
     COMMAND
     "${CMAKE_COMMAND}"
     -E copy_if_different
@@ -41,5 +43,6 @@ function(add_copyright_file PACKAGE_NAME SOURCE)
     FILES "${SOURCE}"
     TYPE DOC
     RENAME "${PACKAGE_DOC_DIR}/LICENSE"
+    COMPONENT licenses
   )
 endfunction()
