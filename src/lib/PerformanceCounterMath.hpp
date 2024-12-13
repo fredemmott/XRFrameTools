@@ -31,7 +31,10 @@ class PerformanceCounterMath {
   [[nodiscard]]
   inline std::chrono::microseconds ToDuration(
     const LARGE_INTEGER begin,
-    const LARGE_INTEGER end) const noexcept {
+    const LARGE_INTEGER end) const {
+    if (end.QuadPart < begin.QuadPart) {
+      throw std::invalid_argument("end must be greater than begin");
+    }
     return ToDuration({.QuadPart = end.QuadPart - begin.QuadPart});
   }
 
