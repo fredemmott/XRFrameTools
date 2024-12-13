@@ -26,7 +26,14 @@ set(
   CACHE STRING "Vcpkg toolchain file"
 )
 
-project(XRFrameTools VERSION 0.0.1 LANGUAGES CXX)
+set(VERSION_TWEAK 0 CACHE STRING "Final component of build number")
+project(XRFrameTools VERSION 0.0.1.${VERSION_TWEAK} LANGUAGES CXX)
+set(VERSION_TWEAK_LABEL "local" CACHE STRING "Human-readable label for build number")
+set(
+  READABLE_VERSION
+  "${CMAKE_PROJECT_VERSION_MAJOR}.${CMAKE_PROJECT_VERSION_MINOR}.${CMAKE_PROJECT_VERSION_PATCH}+${VERSION_TWEAK_LABEL}.${CMAKE_PROJECT_VERSION_TWEAK}")
+option(IS_TAGGED_BUILD "Whether or not we're building a tagged version" OFF)
+option(IS_STABLE_RELEASE "Whether or not we're building a stable build" OFF)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 

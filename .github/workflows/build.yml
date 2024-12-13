@@ -54,6 +54,8 @@ jobs:
           cmake .. `
             "-DCMAKE_BUILD_TYPE=${{matrix.build-type}}" `
             -DVCPKG_TARGET_TRIPLET=${{inputs.vcpkg-architecture}}-windows${{matrix.build-type == 'RelWithDebInfo' && '-static' || ''}} `
+            -DVERSION_TWEAK=${{github.run_number}} `
+            -DVERSION_TWEAK_LABEL=gha `
             @extraArgs
       - name: Build
         shell: pwsh

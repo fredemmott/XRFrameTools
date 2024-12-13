@@ -29,4 +29,6 @@ target_link_libraries(
   D3D11
   DXGI
 )
+include(add_version_resource)
+add_version_resource(app)
 install(TARGETS app DESTINATION bin)

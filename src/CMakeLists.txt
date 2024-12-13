@@ -1,3 +1,5 @@
+include(add_version_resource)
+
 math(EXPR BUILD_BITNESS "${CMAKE_SIZEOF_VOID_P} * 8")
 
 find_package(wil CONFIG REQUIRED)
@@ -38,8 +40,9 @@ macro(add_xr_api_layer TARGET)
     OUTPUT_NAME "XR_APILAYER_FREDEMMOTT_${TARGET}${BUILD_BITNESS}"
     ENABLE_EXPORTS ON
   )
-  add_dependencies(api-layers "${TARGET}")
+  add_version_resource(${TARGET})
 
+  add_dependencies(api-layers "${TARGET}")
   install(TARGETS ${TARGET} DESTINATION lib COMPONENT api-layers)
 
   add_xr_api_layer_json(${TARGET})
@@ -69,6 +72,7 @@ target_link_libraries(
   BinaryLogReader
   magic_enum::magic_enum
 )
+add_version_resource(binlog-to-csv)
 install(TARGETS binlog-to-csv DESTINATION bin)
 
 include(app.cmake)
