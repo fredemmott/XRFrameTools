@@ -223,7 +223,7 @@ void MainWindow::LoggingSection() {
   this->LogConversionControls();
 
   // "OpenFolderHorizontal"
-  if (ImGui::Button("\ued25 Open logs folder...")) {
+  if (ImGui::Button("\ued25 Open logs folder")) {
     ShellExecuteW(
       GetHWND(),
       L"explore",
