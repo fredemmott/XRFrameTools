@@ -29,3 +29,4 @@ target_link_libraries(
   D3D11
   DXGI
 )
+install(TARGETS app DESTINATION bin)

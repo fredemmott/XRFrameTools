@@ -67,5 +67,6 @@ target_link_libraries(
   BinaryLogReader
   magic_enum::magic_enum
 )
+install(TARGETS binlog-to-csv DESTINATION bin)
 
 include(app.cmake)
