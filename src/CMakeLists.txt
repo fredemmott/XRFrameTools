@@ -24,10 +24,11 @@ macro(add_xr_api_layer_json TARGET)
   install(
     FILES "${GENERATED}"
     TYPE LIB
-    COMPONENT layers
+    COMPONENT api-layers
   )
 endmacro()
 
+add_custom_target(api-layers ALL)
 macro(add_xr_api_layer TARGET)
   add_library(${TARGET} MODULE ${ARGN})
   target_link_libraries(${TARGET} PRIVATE openxr Config)
@@ -37,8 +38,9 @@ macro(add_xr_api_layer TARGET)
     OUTPUT_NAME "XR_APILAYER_FREDEMMOTT_${TARGET}${BUILD_BITNESS}"
     ENABLE_EXPORTS ON
   )
+  add_dependencies(api-layers "${TARGET}")
 
-  install(TARGETS ${TARGET} DESTINATION lib COMPONENT layers)
+  install(TARGETS ${TARGET} DESTINATION lib COMPONENT api-layers)
 
   add_xr_api_layer_json(${TARGET})
 endmacro()
