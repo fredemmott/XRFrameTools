@@ -9,6 +9,8 @@ add_compile_options(
   "/EHsc"
   # Include content and marker in error messages
   "/diagnostics:caret"
+  # Source is UTF-8
+  "/utf-8"
 )
 add_compile_definitions(
   "NOMINMAX=1"
