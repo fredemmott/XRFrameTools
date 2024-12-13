@@ -1,20 +1,36 @@
 // Copyright 2024 Fred Emmott <fred@fredemmott.com>
 // SPDX-License-Identifier: MIT
 
+// clang-format off
 #include <Windows.h>
-#include <implot.h>
+#include <TraceLoggingProvider.h>
 #include <shlobj_core.h>
+// clang-format on
+
+#include <implot.h>
 
 #include <filesystem>
 
 #include "MainWindow.hpp"
 #include "Win32Utils.hpp"
 
+/* PS>
+ * [System.Diagnostics.Tracing.EventSource]::new("XRFrameTools")
+ * a6efd5fe-e082-5e08-69da-0a9fcdafda5f
+ */
+TRACELOGGING_DEFINE_PROVIDER(
+  gTraceProvider,
+  "XRFrameTools",
+  (0xa6efd5fe, 0xe082, 0x5e08, 0x69, 0xda, 0x0a, 0x9f, 0xcd, 0xaf, 0xda, 0x5f));
+
 int WINAPI wWinMain(
   HINSTANCE hInstance,
   HINSTANCE hPrevInstance,
   LPWSTR lpCmdLine,
   int nCmdShow) {
+  TraceLoggingRegister(gTraceProvider);
+  const auto cleanupTraceLogging
+    = wil::scope_exit(std::bind_front(&TraceLoggingUnregister, gTraceProvider));
   CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
 #ifndef NDEBUG
   if (GetACP() != CP_UTF8) {

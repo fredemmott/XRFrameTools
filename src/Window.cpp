@@ -3,6 +3,8 @@
 
 #include "Window.hpp"
 
+#include <TraceLoggingActivity.h>
+#include <TraceLoggingProvider.h>
 #include <dxgi1_3.h>
 #include <imgui.h>
 #include <imgui_impl_dx11.h>
@@ -17,6 +19,8 @@
 
 #include "CheckHResult.hpp"
 #include "Win32Utils.hpp"
+
+TRACELOGGING_DECLARE_PROVIDER(gTraceProvider);
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(
   HWND hWnd,
@@ -199,13 +203,18 @@ int Window::Run() noexcept {
       mPendingResize = std::nullopt;
     }
 
-    MSG msg {};
-    while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
-      TranslateMessage(&msg);
-      DispatchMessage(&msg);
-      if (msg.message == WM_QUIT) {
-        return mExitCode.value_or(0);
+    {
+      MSG msg {};
+      TraceLoggingThreadActivity<gTraceProvider> activity;
+      TraceLoggingWriteStart(activity, "Window::Run/WM");
+      while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+        if (msg.message == WM_QUIT) {
+          return mExitCode.value_or(0);
+        }
       }
+      TraceLoggingWriteStop(activity, "Window::Run/WM");
     }
 
     const auto rawRTV = mRenderTargetView.get();
@@ -217,11 +226,21 @@ int Window::Run() noexcept {
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 
-    this->RenderWindow();
+    {
+      TraceLoggingThreadActivity<gTraceProvider> activity;
+      TraceLoggingWriteStart(activity, "Window::Run/RenderWindow");
+      this->RenderWindow();
+      TraceLoggingWriteStop(activity, "Window::Run/RenderWindow");
+    }
 
     ImGui::Render();
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
     mSwapChain->Present(1, 0);
+
+    TraceLoggingThreadActivity<gTraceProvider> waitActivity;
+    TraceLoggingWriteStart(waitActivity, "Window::Run/wait");
+    const auto endActivity = wil::scope_exit(
+      [&]() { TraceLoggingWriteStop(waitActivity, "Window::Run/wait"); });
 
     const auto fps = this->GetTargetFPS();
     if (!fps) {
@@ -230,16 +249,19 @@ int Window::Run() noexcept {
     }
     const auto thisFrameTime
       = std::chrono::steady_clock::now() - thisFrameStart;
-    const auto desiredWaitTime = (std::chrono::milliseconds(1000) / (*fps));
-    if (desiredWaitTime > thisFrameTime) {
+    const auto desiredFrameTime = (std::chrono::milliseconds(1000) / (*fps));
+    if (desiredFrameTime < thisFrameTime) {
       continue;
     }
-    MsgWaitForMultipleObjects(
-      0,
-      nullptr,
-      FALSE,
-      static_cast<DWORD>((desiredWaitTime - thisFrameTime).count()),
-      QS_ALLINPUT);
+    const auto interval = static_cast<DWORD>(
+      std::chrono::duration_cast<std::chrono::milliseconds>(
+        (desiredFrameTime - thisFrameTime))
+        .count());
+    TraceLoggingWrite(
+      gTraceProvider,
+      "Widow::Run/MsgWaitForMultipleObjects",
+      TraceLoggingInt32(interval, "milliseconds"));
+    MsgWaitForMultipleObjects(0, nullptr, FALSE, interval, QS_ALLINPUT);
   }
 
   return *mExitCode;
