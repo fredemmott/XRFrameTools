@@ -1,0 +1,53 @@
+on: [ workflow_call ]
+jobs:
+  build:
+    name: "build64/${{matrix.build-type}}"
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        build-type: [ RelWithDebInfo, Debug ]
+    env:
+      VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
+    steps:
+      - name: Export GitHub Actions cache environment variables
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Configure
+        shell: pwsh
+        run: |
+          mkdir build
+          cd build
+          cmake .. `
+            "-DCMAKE_BUILD_TYPE=${{matrix.build-type}}" `
+            -DVCPKG_TARGET_TRIPLET=x64-windows${{matrix.build-type == 'RelWithDebInfo' && '-static' || ''}}
+      - name: Build
+        shell: pwsh
+        working-directory: build
+        run: |
+          cmake `
+            --build . `
+            --config ${{matrix.build-type}} `
+            --parallel
+      - name: Install
+        shell: pwsh
+        working-directory: build
+        run: |
+          cmake --install . --config ${{matrix.build-type}} --prefix install-prefix
+      - name: Upload installable artifacts
+        uses: actions/upload-artifact@v4
+        if: matrix.build-type != 'Debug'
+        with:
+          name: build64
+          path: build/install-prefix
+      - name: Upload debug symbols
+        uses: actions/upload-artifact@v4
+        if: matrix.build-type != 'Debug'
+        with:
+          name: build64-debug-symbols
+          path: build/out/${{matrix.build-type}}/pdb
