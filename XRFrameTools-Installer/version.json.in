@@ -7,5 +7,6 @@
   },
   "readable": "@READABLE_VERSION@",
   "stable": @IS_STABLE_RELEASE_JSON@,
-  "tagged": @IS_TAGGED_BUILD_JSON@
+  "tagged": @IS_TAGGED_BUILD_JSON@,
+  "tweakLabel": "@VERSION_TWEAK_LABEL@"
 }
