@@ -5,6 +5,7 @@
 #include <Windows.h>
 
 #include <cinttypes>
+#include <expected>
 #include <filesystem>
 #include <functional>
 #include <optional>
@@ -47,7 +48,7 @@ class Config {
   XRFT_ITERATE_SETTINGS(DECLARE_SETTER)
 #undef DEFINE_GETTER
 
-  inline bool IsBinaryLoggingEnabled() const noexcept {
+  bool IsBinaryLoggingEnabled() const noexcept {
     switch (const auto value = this->GetBinaryLoggingEnabledUntil()) {
       case BinaryLoggingDisabled:
         return false;
@@ -62,6 +63,7 @@ class Config {
 
  private:
   static constexpr auto DefaultsSubkey = L"__defaults__";
+
   Config(wil::unique_hkey appKey, wil::unique_hkey defaultsKey);
 
   std::shared_mutex mMutex;
@@ -77,16 +79,10 @@ class Config {
 
   wil::unique_hkey mDefaultsKey;
   wil::unique_hkey mAppKey;
+  wil::unique_registry_watcher_nothrow mWatcher;
 
   void Load();
   static void Load(Storage& storage, HKEY hkey);
-
-  const wil::unique_registry_watcher_nothrow mWatcher
-    = wil::make_registry_watcher_nothrow(
-      HKEY_CURRENT_USER,
-      RootSubkey,
-      /* recursive = */ true,
-      std::bind_front(&Config::OnRegistryChange, this));
 
   void OnRegistryChange(wil::RegistryChangeKind);
 };
