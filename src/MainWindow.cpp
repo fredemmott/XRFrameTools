@@ -160,7 +160,7 @@ void MainWindow::LoggingControls() {
 
 void MainWindow::LogConversionControls() {
   // "ReportDocument" glyph
-  if (ImGui::Button("\ue9f9 Convert log files to CSV...")) {
+  if (ImGui::Button("\ue9f9Convert log files to CSV...")) {
     ImGui::OpenPopup("Convert log files to CSV");
   }
 
@@ -216,7 +216,7 @@ void MainWindow::LoggingSection() {
   const ImGuiScoped::ID idScope {"Logging"};
 
   // "History" glyph
-  const auto tabItem = ImGuiScoped::TabItem("\ue81c Performance logging");
+  const auto tabItem = ImGuiScoped::TabItem("\ue81cPerformance logging");
   if (!tabItem) {
     return;
   }
@@ -228,7 +228,7 @@ void MainWindow::LoggingSection() {
   this->LogConversionControls();
 
   // "OpenFolderHorizontal"
-  if (ImGui::Button("\ued25 Open logs folder")) {
+  if (ImGui::Button("\ued25Open logs folder")) {
     ShellExecuteW(
       GetHWND(),
       L"explore",
@@ -620,7 +620,7 @@ void MainWindow::LiveDataSection() {
 void MainWindow::AboutSection() {
   const ImGuiScoped::ID idScope {"About"};
 
-  const auto tabItem = ImGuiScoped::TabItem("\ue897 About XRFrameTool");
+  const auto tabItem = ImGuiScoped::TabItem("\ue897About XRFrameTool");
   if (!tabItem) {
     return;
   }
