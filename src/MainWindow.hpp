@@ -26,6 +26,7 @@ class MainWindow final : public Window {
 
  private:
   Config mBaseConfig;
+  std::filesystem::path mThisExecutable;
 
   int mCSVFramesPerRow {CSVWriter::DefaultFramesPerRow};
   std::vector<BinaryLogReader> mBinaryLogFiles;
@@ -35,6 +36,7 @@ class MainWindow final : public Window {
   void LogConversionControls();
   void LoggingSection();
   void LiveDataSection();
+  void AboutSection();
 
   void UpdateLiveData();
 

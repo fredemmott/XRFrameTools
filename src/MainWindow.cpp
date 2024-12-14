@@ -18,6 +18,7 @@
 #include "ImGuiHelpers.hpp"
 #include "ImStackedAreaPlotter.hpp"
 #include "SHM.hpp"
+#include "Version.hpp"
 #include "Win32Utils.hpp"
 
 static const auto gPCM = PerformanceCounterMath::CreateForLiveData();
@@ -27,6 +28,8 @@ MainWindow::MainWindow(HINSTANCE instance)
     mBaseConfig(Config::GetUserDefaults(Config::Access::ReadWrite)),
     mLiveDataThread(
       std::bind_front(&MainWindow::UpdateLiveDataThreadEntry, this)) {
+  mThisExecutable
+    = std::filesystem::path {wil::QueryFullProcessImageNameW().get()};
 }
 
 MainWindow::~MainWindow() {
@@ -248,8 +251,9 @@ void MainWindow::RenderContent() {
   //
   // https://learn.microsoft.com/en-us/windows/apps/design/style/segoe-ui-symbol-font
 
-  this->LoggingSection();
   this->LiveDataSection();
+  this->LoggingSection();
+  this->AboutSection();
 }
 std::optional<float> MainWindow::GetTargetFPS() const noexcept {
   if (!mLiveData.mEnabled) {
@@ -604,6 +608,42 @@ void MainWindow::LiveDataSection() {
   ImGui::SameLine();
   if (ImGui::RadioButton("Lines", mFrameTimingPlotKind == PlotKind::Lines)) {
     mFrameTimingPlotKind = PlotKind::Lines;
+  }
+}
+
+void MainWindow::AboutSection() {
+  const ImGuiScoped::ID idScope {"About"};
+
+  ImGui::SeparatorText("\ue897 About XRFrameTool");
+
+  if constexpr (!Version::IsStableRelease) {
+    if constexpr (!Version::IsTaggedBuild) {
+      ImGui::TextColored({1.0, 0.0, 0.0, 1.0}, "DEVELOPMENT BUILD");
+    } else {
+      ImGui::TextColored({1.0, 0.0, 0.0, 1.0}, "Public Test Version");
+    }
+  }
+  ImGui::Text(
+    R"---(XRFrameTool v%s
+
+Copyright © 2024 Fred Emmott
+
+XRFrameTools is distributed under the MIT license; it contains third-party components, distributed under their own terms.
+)---",
+    Version::SemVer);
+  if (ImGui::TextLink("License details")) {
+    ShellExecuteW(
+      GetHWND(),
+      L"open",
+      (mThisExecutable.parent_path().parent_path() / "share/doc")
+        .wstring()
+        .c_str(),
+      nullptr,
+      nullptr,
+      SW_SHOW);
+  }
+  if (ImGui::IsItemHovered()) {
+    ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
   }
 }
 

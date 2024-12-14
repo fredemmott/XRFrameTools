@@ -18,7 +18,7 @@ function(add_copyright_file PACKAGE_NAME SOURCE)
   endif()
 
   set(BUILD_TREE_TARGET_DIR "${BUILD_OUT_ROOT}/share/doc/${PACKAGE_DOC_DIR}")
-  set(BUILD_TREE_TARGET "${BUILD_TREE_TARGET_DIR}/LICENSE")
+  set(BUILD_TREE_TARGET "${BUILD_TREE_TARGET_DIR}/LICENSE.txt")
   cmake_path(ABSOLUTE_PATH BUILD_TREE_TARGET NORMALIZE)
 
   add_custom_command(
@@ -42,7 +42,7 @@ function(add_copyright_file PACKAGE_NAME SOURCE)
   install(
     FILES "${SOURCE}"
     TYPE DOC
-    RENAME "${PACKAGE_DOC_DIR}/LICENSE"
+    RENAME "${PACKAGE_DOC_DIR}/LICENSE.txt"
     COMPONENT licenses
   )
 endfunction()

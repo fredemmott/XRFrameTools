@@ -1,3 +1,11 @@
+SET(VERSION_HPP "${CMAKE_CURRENT_BINARY_DIR}/include/Version.hpp")
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/version.hpp.in"
+  "${VERSION_HPP}"
+  @ONLY
+  NEWLINE_STYLE UNIX
+)
+
 add_executable(
   app
   WIN32
@@ -7,6 +15,7 @@ add_executable(
   ImStackedAreaPlotter.cpp ImStackedAreaPlotter.hpp
   Window.cpp Window.hpp
   MainWindow.cpp MainWindow.hpp
+  "${VERSION_HPP}"
   utf8.manifest
 )
 set_target_properties(
@@ -29,6 +38,7 @@ target_link_libraries(
   D3D11
   DXGI
 )
+target_include_directories(app PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/include")
 include(add_version_resource)
 add_version_resource(app)
 install(TARGETS app DESTINATION bin)

@@ -1,5 +1,4 @@
 include(add_version_resource)
-
 math(EXPR BUILD_BITNESS "${CMAKE_SIZEOF_VOID_P} * 8")
 
 find_package(wil CONFIG REQUIRED)

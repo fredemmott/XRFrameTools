@@ -1,0 +1,48 @@
+// Copyright 2024 Fred Emmott <fred@fredemmott.com>
+// SPDX-License-Identifier: MIT
+#pragma once
+
+namespace Version {
+
+namespace detail {
+template<auto N>
+using LiteralString = const char[N];
+
+  template<auto N, auto M>
+  consteval bool IsEqual(LiteralString<N>& a, LiteralString<M>& b) {
+    if constexpr(N != M) {
+      return false;
+    }
+    for (decltype(N) i = 0; i < N; ++i) {
+      if (a[i] != b[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  template <auto N, auto Head, auto... Tail>
+  consteval bool IsEqualToAny(
+    LiteralString<N>& cmakeValue,
+    LiteralString<Head>& head,
+    LiteralString<Tail>& ...tail) {
+    if (IsEqual(cmakeValue, head)) {
+      return true;
+    }
+    if constexpr (sizeof...(Tail) == 0) {
+      return false;
+    } else {
+      return IsEqualToAny<N, Tail...>(cmakeValue, tail...);
+    }
+  }
+
+  template<auto N>
+  consteval bool CMakeBool(LiteralString<N>& cmakeValue) {
+    return IsEqualToAny(cmakeValue, "1", "ON", "YES", "TRUE", "Y");
+  }
+}
+
+constexpr char SemVer[] = { "@READABLE_VERSION@" };
+constexpr bool IsTaggedBuild = detail::CMakeBool("@IS_TAGGED_BUILD@");
+constexpr bool IsStableRelease = detail::CMakeBool("@IS_STABLE_RELEASE@");
+}
