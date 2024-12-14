@@ -62,12 +62,12 @@ struct [[nodiscard]] Conditional : NonMoveable {
 };
 
 struct [[nodiscard]] Popup : Conditional<&ImGui::EndPopup> {
-  Popup(const char* name) : Conditional(ImGui::BeginPopup(name)) {
+  explicit Popup(const char* name) : Conditional(ImGui::BeginPopup(name)) {
   }
 };
 
 struct [[nodiscard]] PopupModal : Conditional<&ImGui::EndPopup> {
-  inline PopupModal(
+  explicit PopupModal(
     const char* name,
     bool* p_open = NULL,
     ImGuiWindowFlags flags = 0)
@@ -76,7 +76,7 @@ struct [[nodiscard]] PopupModal : Conditional<&ImGui::EndPopup> {
 };
 
 struct [[nodiscard]] ImPlot : Conditional<&::ImPlot::EndPlot> {
-  ImPlot(
+  explicit ImPlot(
     const char* title_id,
     const ImVec2& size = ImVec2(-1, 0),
     ImPlotFlags flags = 0)
