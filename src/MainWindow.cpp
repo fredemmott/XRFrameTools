@@ -216,7 +216,10 @@ void MainWindow::LoggingSection() {
   const ImGuiScoped::ID idScope {"Logging"};
 
   // "History" glyph
-  ImGui::SeparatorText("\ue81c Performance logging");
+  const auto tabItem = ImGuiScoped::TabItem("\ue81c Performance logging");
+  if (!tabItem) {
+    return;
+  }
 
   this->LoggingControls();
 
@@ -250,9 +253,11 @@ void MainWindow::RenderContent() {
   //
   // https://learn.microsoft.com/en-us/windows/apps/design/style/segoe-ui-symbol-font
 
-  this->LiveDataSection();
-  this->LoggingSection();
-  this->AboutSection();
+  if (const auto tabBar = ImGuiScoped::TabBar("##TabBar")) {
+    this->LiveDataSection();
+    this->LoggingSection();
+    this->AboutSection();
+  }
 }
 std::optional<float> MainWindow::GetTargetFPS() const noexcept {
   if (!mLiveData.mEnabled) {
@@ -455,10 +460,12 @@ struct MainWindow::LiveData::PlotPoint : ImPlotPoint {
 
 void MainWindow::LiveDataSection() {
   std::unique_lock lock(mLiveDataMutex);
-  const ImGuiScoped::ID idScope {"Live data"};
 
   // "SpeedHigh" glyph
-  ImGui::SeparatorText("\uec4aLive data");
+  const auto tabItem = ImGuiScoped::TabItem("\uec4aLive data");
+  if (!tabItem) {
+    return;
+  }
 
   ImGui::Checkbox("Enable updates", &mLiveData.mEnabled);
 
@@ -613,7 +620,10 @@ void MainWindow::LiveDataSection() {
 void MainWindow::AboutSection() {
   const ImGuiScoped::ID idScope {"About"};
 
-  ImGui::SeparatorText("\ue897 About XRFrameTool");
+  const auto tabItem = ImGuiScoped::TabItem("\ue897 About XRFrameTool");
+  if (!tabItem) {
+    return;
+  }
 
   if constexpr (!Version::IsStableRelease) {
     if constexpr (!Version::IsTaggedBuild) {

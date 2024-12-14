@@ -84,4 +84,18 @@ struct [[nodiscard]] ImPlot : Conditional<&::ImPlot::EndPlot> {
   }
 };
 
+struct [[nodiscard]] TabBar : Conditional<&ImGui::EndTabBar> {
+  explicit TabBar(const char* name) : Conditional(ImGui::BeginTabBar(name)) {
+  }
+};
+
+struct [[nodiscard]] TabItem : Conditional<&ImGui::EndTabItem> {
+  explicit TabItem(
+    const char* label,
+    bool* p_open = NULL,
+    ImGuiTabItemFlags flags = 0)
+    : Conditional(ImGui::BeginTabItem(label, p_open, flags)) {
+  }
+};
+
 }// namespace ImGuiScoped
