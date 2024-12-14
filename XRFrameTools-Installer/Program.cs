@@ -65,11 +65,7 @@ async Task<int> CreateInstaller(DirectoryInfo inputRoot, string? signingKeyId, s
     await SetProjectVersionFromJson(project, inputRoot);
     
     project.ResolveWildCards();
-    var target = $"{inputRoot}\\bin\\XRFrameTools.exe".PathGetFullPath();
-    var file = project.AllFiles.Single(f => f.Name == target);
-    file.AddShortcuts(
-        new FileShortcut("XRFrameTools", "INSTALLDIR"),
-        new FileShortcut("XRFrameTools", "%ProgramMenuFolder%"));
+    CreateShortcuts(inputRoot, project);
     AddCommandLineAliases(project);
 
     RegisterAPILayers(inputRoot, project);
@@ -158,6 +154,15 @@ void AddCommandLineAliases(ManagedProject managedProject)
             string.Empty,
             @"[INSTALLDIR]bin\binlog-to-csv.exe")
     );
+}
+
+void CreateShortcuts(DirectoryInfo directoryInfo, ManagedProject managedProject)
+{
+    var target = $"{directoryInfo}\\bin\\XRFrameTools.exe".PathGetFullPath();
+    var file = managedProject.AllFiles.Single(f => f.Name == target);
+    file.AddShortcuts(
+        new FileShortcut("XRFrameTools", "INSTALLDIR"),
+        new FileShortcut("XRFrameTools", "%ProgramMenuFolder%"));
 }
 
 class JsonVersionComponents
