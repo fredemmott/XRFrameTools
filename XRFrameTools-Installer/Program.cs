@@ -137,6 +137,13 @@ void RegisterAPILayers(DirectoryInfo directoryInfo, ManagedProject managedProjec
         managedProject.AddRegValue(new RegValue(RegistryHive.LocalMachine, apiLayersKey,
             $"[INSTALLDIR]lib\\{file.Name}", 0));
     }
+    foreach (var file in directoryInfo.GetDirectories("lib").First().GetFiles("XR_APILAYER_*32.json"))
+    {
+        var value = new RegValue(RegistryHive.LocalMachine, apiLayersKey,
+            $"[INSTALLDIR]lib\\{file.Name}", 0);
+        value.Win64 = false;
+        managedProject.AddRegValue(value);
+    }
 }
 
 void AddCommandLineAliases(ManagedProject managedProject)
