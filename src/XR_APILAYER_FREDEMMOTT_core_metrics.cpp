@@ -236,12 +236,16 @@ XRAPI_ATTR XrResult XRAPI_CALL xrCreateApiLayerInstance(
   return ret;
 }
 
+// - __declspec(dllexport) is sufficient on x64
+// - on x86, `XRAPI_ATTR` adds `__stcall`, which leads to mangling even with
+//   `extern "C"`
 #if defined(_WIN32) && !defined(_WIN64)
 #pragma comment( \
   linker, \
   "/export:xrNegotiateLoaderApiLayerInterface=_xrNegotiateLoaderApiLayerInterface@12")
 #endif
-extern "C" XRAPI_ATTR XrResult XRAPI_CALL xrNegotiateLoaderApiLayerInterface(
+extern "C" __declspec(dllexport) XRAPI_ATTR XrResult XRAPI_CALL
+xrNegotiateLoaderApiLayerInterface(
   const XrNegotiateLoaderInfo* loaderInfo,
   const char* layerName,
   XrNegotiateApiLayerRequest* apiLayerRequest) {
