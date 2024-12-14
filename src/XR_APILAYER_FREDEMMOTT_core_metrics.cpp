@@ -236,8 +236,12 @@ XRAPI_ATTR XrResult XRAPI_CALL xrCreateApiLayerInstance(
   return ret;
 }
 
-extern "C" __declspec(dllexport) XRAPI_ATTR XrResult XRAPI_CALL
-xrNegotiateLoaderApiLayerInterface(
+#if defined(_WIN32) && !defined(_WIN64)
+#pragma comment( \
+  linker, \
+  "/export:xrNegotiateLoaderApiLayerInterface=_xrNegotiateLoaderApiLayerInterface@12")
+#endif
+extern "C" XRAPI_ATTR XrResult XRAPI_CALL xrNegotiateLoaderApiLayerInterface(
   const XrNegotiateLoaderInfo* loaderInfo,
   const char* layerName,
   XrNegotiateApiLayerRequest* apiLayerRequest) {
@@ -289,6 +293,8 @@ xrNegotiateLoaderApiLayerInterface(
 
   apiLayerRequest->getInstanceProcAddr = &xrGetInstanceProcAddr;
   apiLayerRequest->createApiLayerInstance = &xrCreateApiLayerInstance;
+
+  dprint("xrNegotiateLoaderApiLayerInterface success");
 
   return XR_SUCCESS;
 }
