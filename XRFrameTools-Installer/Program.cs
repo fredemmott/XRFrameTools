@@ -162,6 +162,7 @@ void CreateShortcuts(DirectoryInfo directoryInfo, ManagedProject managedProject)
     var file = managedProject.AllFiles.Single(f => f.Name == target);
     file.AddShortcuts(
         new FileShortcut("XRFrameTools", "INSTALLDIR"),
+        new FileShortcut("XRFrameTools", "%Desktop%"),
         new FileShortcut("XRFrameTools", "%ProgramMenuFolder%"));
 }
 
