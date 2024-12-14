@@ -15,14 +15,6 @@ on:
         required: true
         type: string
         description: First component of vcpkg triplet
-      target:
-        required: false
-        type: string
-        description: Target for cmake --build
-      component:
-        required: false
-        type: string
-        description: Component for cmake --install
 jobs:
   build:
     name: "${{inputs.name}}/${{matrix.build-type}}"
@@ -61,24 +53,15 @@ jobs:
         shell: pwsh
         working-directory: build
         run: |
-          $extraArgs = @()
-          if ("${{inputs.target}}" -ne "") {
-            $extraArgs += @('--target', '${{inputs.target}}')
-          }
           cmake `
             --build . `
             --config ${{matrix.build-type}} `
-            --parallel `
-            @extraArgs
+            --parallel
       - name: Install
         shell: pwsh
         working-directory: build
         run: |
-          $extraArgs = @()
-          if ("${{inputs.component}}" -ne "") {
-            $extraArgs += @('--component', '${{inputs.component}}')
-          }
-          cmake --install . --config ${{matrix.build-type}} --prefix install-prefix @extraArgs
+          cmake --install . --config ${{matrix.build-type}} --prefix install-prefix
       - name: Upload binaries
         uses: actions/upload-artifact@v4
         if: matrix.build-type != 'Debug'
