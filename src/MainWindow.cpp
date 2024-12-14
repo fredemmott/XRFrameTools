@@ -468,6 +468,12 @@ void MainWindow::LiveDataSection() {
   }
 
   ImGui::Checkbox("Enable updates", &mLiveData.mEnabled);
+  ImGui::SameLine();
+  if (ImGui::Button("Clear")) {
+    mLiveApp = {};
+    (void)mLiveData.mAggregator.Flush();
+    mLiveData.mChartFrames = {LiveData::BufferSize};
+  }
 
   if (mSHM.IsValid() && mSHM->mWriterProcessID != mLiveApp.mProcessID) {
     mLiveApp = {.mProcessID = mSHM->mWriterProcessID};
