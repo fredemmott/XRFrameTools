@@ -32,8 +32,7 @@ MainWindow::MainWindow(HINSTANCE instance)
     = std::filesystem::path {wil::QueryFullProcessImageNameW().get()};
 }
 
-MainWindow::~MainWindow() {
-}
+MainWindow::~MainWindow() = default;
 
 MainWindow::LiveData::LiveData() : mAggregator(gPCM) {
 }
