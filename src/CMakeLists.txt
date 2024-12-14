@@ -43,7 +43,7 @@ macro(add_xr_api_layer TARGET)
   set_target_properties(
     ${TARGET}
     PROPERTIES
-    OUTPUT_NAME " XR_APILAYER_FREDEMMOTT_${TARGET}${BUILD_BITNESS}"
+    OUTPUT_NAME "XR_APILAYER_FREDEMMOTT_${TARGET}${BUILD_BITNESS}"
     ENABLE_EXPORTS ON
   )
   add_version_resource(${TARGET})
