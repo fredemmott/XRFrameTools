@@ -9,6 +9,13 @@ add_subdirectory(lib)
 
 add_executable(TestApiLayerEntryPoint EXCLUDE_FROM_ALL TestAPILayerEntryPoint.cpp)
 target_link_libraries(TestApiLayerEntryPoint PRIVATE WIL::WIL)
+set_target_properties(
+  TestApiLayerEntryPoint
+  PROPERTIES
+  # don't put them in `bin/` and `pdb/` as they're just not meant for distribution
+  RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+  PDB_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+)
 
 macro(add_xr_api_layer_json TARGET)
   set(LAYER "XR_APILAYER_FREDEMMOTT_${TARGET}")
