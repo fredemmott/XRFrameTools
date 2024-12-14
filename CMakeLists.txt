@@ -49,10 +49,9 @@ endblock()
 include(cmake/output-directories.cmake)
 
 block(PROPAGATE XRFrameTools_ABI_ID)
-  string(TIMESTAMP CONFIGURE_TIMESTAMP "%Y%m%dT%H%M%S/%f" UTC)
   set(
     XRFrameTools_ABI_ID
-    "${CMAKE_PROJECT_VERSION}/${CONFIGURE_TIMESTAMP}"
+    "${CMAKE_PROJECT_VERSION}/${CMAKE_PROJECT_VERSION}"
     CACHE
     STRING "Unique ID for this build to avoid inter-module ABI issues")
 endblock()
