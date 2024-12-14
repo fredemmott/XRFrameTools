@@ -7,6 +7,9 @@ include_directories("${CMAKE_CURRENT_SOURCE_DIR}/lib")
 
 add_subdirectory(lib)
 
+add_executable(TestApiLayerEntryPoint EXCLUDE_FROM_ALL TestAPILayerEntryPoint.cpp)
+target_link_libraries(TestApiLayerEntryPoint PRIVATE WIL::WIL)
+
 macro(add_xr_api_layer_json TARGET)
   set(LAYER "XR_APILAYER_FREDEMMOTT_${TARGET}")
   set(CONFIGURED "${CMAKE_CURRENT_BINARY_DIR}/${LAYER}.json")
@@ -24,6 +27,13 @@ macro(add_xr_api_layer_json TARGET)
     TYPE LIB
     COMPONENT api-layers
   )
+
+  add_custom_command(
+    TARGET "${TARGET}"
+    POST_BUILD
+    COMMAND "$<TARGET_FILE:TestApiLayerEntryPoint>" "$<TARGET_FILE:${TARGET}>"
+    VERBATIM
+  )
 endmacro()
 
 add_custom_target(api-layers ALL)
@@ -33,7 +43,7 @@ macro(add_xr_api_layer TARGET)
   set_target_properties(
     ${TARGET}
     PROPERTIES
-    OUTPUT_NAME "XR_APILAYER_FREDEMMOTT_${TARGET}${BUILD_BITNESS}"
+    OUTPUT_NAME " XR_APILAYER_FREDEMMOTT_${TARGET}${BUILD_BITNESS}"
     ENABLE_EXPORTS ON
   )
   add_version_resource(${TARGET})
