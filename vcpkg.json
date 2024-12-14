@@ -1,15 +1,22 @@
 {
   "builtin-baseline": "b2cb0da531c2f1f740045bfe7c4dac59f0b2b69c",
   "dependencies": [
+    "wil",
     {
       "name": "imgui",
+      "platform": "x64",
       "features": [
         "dx11-binding",
         "win32-binding"
       ]
     },
-    "implot",
-    "magic-enum",
-    "wil"
+    {
+      "name": "implot",
+      "platform": "x64"
+    },
+    {
+      "name": "magic-enum",
+      "platform": "x64"
+    }
   ]
 }

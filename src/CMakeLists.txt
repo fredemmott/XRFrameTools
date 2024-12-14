@@ -2,9 +2,6 @@ include(add_version_resource)
 math(EXPR BUILD_BITNESS "${CMAKE_SIZEOF_VOID_P} * 8")
 
 find_package(wil CONFIG REQUIRED)
-find_package(magic_enum CONFIG REQUIRED)
-find_package(imgui CONFIG REQUIRED)
-find_package(implot CONFIG REQUIRED)
 
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/lib")
 
@@ -57,6 +54,14 @@ target_link_libraries(
   BinaryLogWriter
   SHMWriter
 )
+
+if(NOT BUILD_BITNESS EQUAL 64)
+  return()
+endif()
+
+find_package(magic_enum CONFIG REQUIRED)
+find_package(imgui CONFIG REQUIRED)
+find_package(implot CONFIG REQUIRED)
 
 add_executable(
   binlog-to-csv
