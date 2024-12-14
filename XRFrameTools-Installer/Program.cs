@@ -63,9 +63,16 @@ async Task<int> CreateInstaller(DirectoryInfo inputRoot, string? signingKeyId, s
 
     var project = CreateProject(inputRoot);
     await SetProjectVersionFromJson(project, inputRoot);
+    
+    project.ResolveWildCards();
+    var target = $"{inputRoot}\\bin\\XRFrameTools.exe".PathGetFullPath();
+    var file = project.AllFiles.Single(f => f.Name == target);
+    file.AddShortcuts(
+        new FileShortcut("XRFrameTools", "INSTALLDIR"),
+        new FileShortcut("XRFrameTools", "%ProgramMenuFolder%"));
+    AddCommandLineAliases(project);
 
     RegisterAPILayers(inputRoot, project);
-    AddCommandLineAliases(project);
 
     SignProject(project, signingKeyId, timestampServer);
     BuildMsi(project, stampFile);
