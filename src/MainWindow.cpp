@@ -477,6 +477,10 @@ void MainWindow::LiveDataSection() {
     if (process) {
       mLiveApp.mExecutablePath
         = wil::QueryFullProcessImageNameW(process.get()).get();
+      BOOL is32Bit = FALSE;
+      if (IsWow64Process(process.get(), &is32Bit)) {
+        mLiveApp.mProcessBitness = is32Bit ? 32 : 64;
+      }
     }
   }
 
@@ -485,9 +489,13 @@ void MainWindow::LiveDataSection() {
     ImGui::TextDisabled("No current OpenXR application detected");
   } else {
     ImGui::TextDisabled(
-      "Showing PID %ld: %s",
+      "Showing PID %ld: %s (%s)",
       mLiveApp.mProcessID,
-      mLiveApp.mExecutablePath.string().c_str());
+      mLiveApp.mExecutablePath.string().c_str(),
+      (mLiveApp.mProcessBitness.has_value()
+         ? std::format("{}-bit", mLiveApp.mProcessBitness.value())
+         : "unknown architecture")
+        .c_str());
   }
 
   const auto slowestFrameMicroseconds

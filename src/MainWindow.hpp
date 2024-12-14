@@ -46,6 +46,7 @@ class MainWindow final : public Window {
 
   struct LiveApp {
     DWORD mProcessID {};
+    std::optional<uint8_t> mProcessBitness;
     std::filesystem::path mExecutablePath;
   };
   LiveApp mLiveApp;
