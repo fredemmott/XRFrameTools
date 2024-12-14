@@ -620,7 +620,7 @@ void MainWindow::LiveDataSection() {
 void MainWindow::AboutSection() {
   const ImGuiScoped::ID idScope {"About"};
 
-  const auto tabItem = ImGuiScoped::TabItem("\ue897About XRFrameTool");
+  const auto tabItem = ImGuiScoped::TabItem("\ue897About XRFrameTools");
   if (!tabItem) {
     return;
   }
