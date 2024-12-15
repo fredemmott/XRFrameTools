@@ -36,6 +36,15 @@ option(IS_TAGGED_BUILD "Whether or not we're building a tagged version" OFF)
 option(IS_STABLE_RELEASE "Whether or not we're building a stable build" OFF)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+math(EXPR BUILD_BITNESS "${CMAKE_SIZEOF_VOID_P} * 8")
+block(PROPAGATE BUILD_UI)
+  if(BUILD_BITNESS EQUAL 64)
+    set(BUILD_UI_DEFAULT ON)
+  else()
+    set(BUILD_UI_DEFAULT OFF)
+  endif()
+  option(BUILD_UI "Enable building the UI components" ${BUILD_UI_DEFAULT})
+endblock()
 
 block(
   PROPAGATE

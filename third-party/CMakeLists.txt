@@ -1,7 +1,11 @@
 block()
   include(openxr.cmake)
-  include(add_copyright_file)
+  if(BUILD_UI)
+    include(vicius.cmake)
+  endif()
 endblock()
+
+include(add_copyright_file)
 
 set(NOT_DISTRIBUTED vcpkg-cmake vcpkg-cmake-config)
 

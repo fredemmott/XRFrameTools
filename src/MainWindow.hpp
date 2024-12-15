@@ -4,6 +4,7 @@
 
 #include <vector>
 
+#include "AutoUpdater.hpp"
 #include "BinaryLogReader.hpp"
 #include "CSVWriter.hpp"
 #include "Config.hpp"
@@ -25,6 +26,7 @@ class MainWindow final : public Window {
   [[nodiscard]] std::optional<float> GetTargetFPS() const noexcept override;
 
  private:
+  AutoUpdater mUpdater;
   Config mBaseConfig;
   std::filesystem::path mThisExecutable;
 

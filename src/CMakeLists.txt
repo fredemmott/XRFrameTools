@@ -1,5 +1,4 @@
 include(add_version_resource)
-math(EXPR BUILD_BITNESS "${CMAKE_SIZEOF_VOID_P} * 8")
 
 find_package(wil CONFIG REQUIRED)
 
@@ -72,7 +71,7 @@ target_link_libraries(
   SHMWriter
 )
 
-if(NOT BUILD_BITNESS EQUAL 64)
+if(NOT BUILD_UI)
   return()
 endif()
 

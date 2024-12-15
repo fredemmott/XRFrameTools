@@ -11,6 +11,7 @@ add_executable(
   WIN32
   ContiguousRingBuffer.hpp
   GuiMain.cpp
+  AutoUpdater.cpp AutoUpdater.hpp
   ImGuiHelpers.hpp
   ImStackedAreaPlotter.cpp ImStackedAreaPlotter.hpp
   Window.cpp Window.hpp

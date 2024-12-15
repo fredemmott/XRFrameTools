@@ -242,6 +242,7 @@ void MainWindow::LoggingSection() {
 }
 
 void MainWindow::RenderContent() {
+  mUpdater.GiveFocusIfRunning();
   // Unicode escapes are glyphs from the Windows icon fonts:
   // - "Segoe MDL2 Assets" on Win10+ (including Win11)
   // - "Segoe Fluent Icons" on Win11+
