@@ -5,10 +5,10 @@
 
 #include <wil/registry.h>
 #include <wil/win32_helpers.h>
-#include <wil/windowing.h>
 
 #include <filesystem>
 
+#include "Config.hpp"
 #include "Version.hpp"
 #include "Win32Utils.hpp"
 
@@ -22,7 +22,24 @@ AutoUpdater::AutoUpdater() {
     return;
   }
 
-  const auto channel = Version::IsStableRelease ? L"live" : L"test";
+  const auto autoUpdatesSubkey
+    = std::format(L"{}\\AutoUpdate", Config::RootSubkey);
+  const auto enabled
+    = wil::reg::try_get_value_dword(
+        HKEY_CURRENT_USER, autoUpdatesSubkey.c_str(), L"Enabled")
+        .value_or(1);
+  if (!enabled) {
+    dprint("Skipping auto-update due to registry setting");
+  }
+
+  const auto defaultChannel = Version::IsStableRelease ? L"live" : L"test";
+  const auto registryChannel = wil::reg::try_get_value_string(
+    HKEY_CURRENT_USER, autoUpdatesSubkey.c_str(), L"Channel");
+  if (!registryChannel) {
+    wil::reg::set_value_string_nothrow(
+      HKEY_CURRENT_USER, autoUpdatesSubkey.c_str(), L"Channel", defaultChannel);
+  }
+  const auto channel = registryChannel.value_or(defaultChannel);
 
   auto commandLine = std::format(
     L"--channel={} --local-version={} --silent", channel, Version::SemVerW);
