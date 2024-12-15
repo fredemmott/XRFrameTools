@@ -6,6 +6,7 @@ set(
   UPDATER_EXE_PATH
   "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${UPDATER_EXE_FILENAME}"
 )
+file(MAKE_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 file(
   DOWNLOAD
   "https://github.com/fredemmott/autoupdates/releases/download/vicius-v1.7.813%2Bfredemmott.3/Updater-Release.exe"
