@@ -14,7 +14,7 @@
 
 #include "BinaryLogWriter.hpp"
 #include "Config.hpp"
-#include "FramePerformanceCounters.hpp"
+#include "FrameMetricsStore.hpp"
 #include "SHMWriter.hpp"
 #include "Win32Utils.hpp"
 
@@ -28,74 +28,7 @@ static bool gEnabled = true;
 
 static SHMWriter gSHM;
 static std::optional<BinaryLogWriter> gBinaryLogger;
-
-struct Frame final : FramePerformanceCounters {
-  Frame() = default;
-  ~Frame() = default;
-
-  Frame(const Frame&) = delete;
-  Frame(Frame&&) = delete;
-  Frame& operator=(const Frame&) = delete;
-  Frame& operator=(Frame&&) = delete;
-
-  uint64_t mDisplayTime {};
-  std::atomic<bool> mCanBegin {};
-
-  // Don't want to accidentally move/copy this, but do want to be able to reset
-  // it back to the initial state
-  void Reset() {
-    this->~Frame();
-    new (this) Frame();
-  }
-};
-
-class FrameMetricsStore {
- public:
-  static Frame& GetForWaitFrame() noexcept {
-    return mTrackedFrames.at(mWaitFrameCount++ % mTrackedFrames.size());
-  }
-
-  static Frame& GetForBeginFrame() noexcept {
-    const auto it = std::ranges::find_if(mTrackedFrames, [](Frame& it) {
-      bool canBegin {true};
-      return it.mCanBegin.compare_exchange_strong(canBegin, false);
-    });
-
-    if (it == mTrackedFrames.end()) {
-      auto& ret
-        = mUntrackedFrames.at(mUntrackedFrameCount++ % mTrackedFrames.size());
-      ret.Reset();
-      return ret;
-    }
-
-    return *it;
-  }
-
-  static Frame& GetForEndFrame(uint64_t displayTime) noexcept {
-    const auto it
-      = std::ranges::find(mTrackedFrames, displayTime, &Frame::mDisplayTime);
-    if (it == mTrackedFrames.end()) {
-      auto& ret
-        = mUntrackedFrames.at(mUntrackedFrameCount++ % mTrackedFrames.size());
-      ret.Reset();
-      return ret;
-    }
-
-    return *it;
-  }
-
- private:
-  static std::array<Frame, 3> mTrackedFrames;
-  static std::array<Frame, 3> mUntrackedFrames;
-  static std::atomic_uint64_t mWaitFrameCount;
-  static std::atomic_uint64_t mUntrackedFrameCount;
-};
-std::atomic_uint64_t FrameMetricsStore::mWaitFrameCount {0};
-std::atomic_uint64_t FrameMetricsStore::mUntrackedFrameCount {0};
-decltype(FrameMetricsStore::mTrackedFrames)
-  FrameMetricsStore::mTrackedFrames {};
-decltype(FrameMetricsStore::mUntrackedFrames)
-  FrameMetricsStore::mUntrackedFrames {};
+static FrameMetricsStore gFrameMetrics;
 
 static void LogFrame(const FramePerformanceCounters& frame) {
   gSHM.LogFrame(frame);
@@ -121,7 +54,7 @@ XrResult hooked_xrWaitFrame(
   XrSession session,
   const XrFrameWaitInfo* frameWaitInfo,
   XrFrameState* frameState) noexcept {
-  auto& frame = FrameMetricsStore::GetForWaitFrame();
+  auto& frame = gFrameMetrics.GetForWaitFrame();
 
   QueryPerformanceCounter(&frame.mWaitFrameStart);
   const auto ret = next_xrWaitFrame(session, frameWaitInfo, frameState);
@@ -141,7 +74,7 @@ PFN_xrBeginFrame next_xrBeginFrame {nullptr};
 XrResult hooked_xrBeginFrame(
   XrSession session,
   const XrFrameBeginInfo* frameBeginInfo) noexcept {
-  auto& frame = FrameMetricsStore::GetForBeginFrame();
+  auto& frame = gFrameMetrics.GetForBeginFrame();
 
   QueryPerformanceCounter(&frame.mBeginFrameStart);
   const auto ret = next_xrBeginFrame(session, frameBeginInfo);
@@ -158,7 +91,7 @@ PFN_xrEndFrame next_xrEndFrame {nullptr};
 XrResult hooked_xrEndFrame(
   XrSession session,
   const XrFrameEndInfo* frameEndInfo) noexcept {
-  auto& frame = FrameMetricsStore::GetForEndFrame(frameEndInfo->displayTime);
+  auto& frame = gFrameMetrics.GetForEndFrame(frameEndInfo->displayTime);
   QueryPerformanceCounter(&frame.mEndFrameStart);
   const auto ret = next_xrEndFrame(session, frameEndInfo);
   QueryPerformanceCounter(&frame.mEndFrameStop);

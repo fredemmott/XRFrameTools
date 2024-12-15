@@ -44,7 +44,7 @@ endmacro()
 
 add_custom_target(api-layers ALL)
 macro(add_xr_api_layer TARGET)
-  add_library(${TARGET} MODULE ${ARGN})
+  add_library(${TARGET} MODULE ${ARGN} FrameMetricsStore.hpp)
   target_link_libraries(${TARGET} PRIVATE openxr Config)
   set_target_properties(
     ${TARGET}
@@ -69,6 +69,11 @@ target_link_libraries(
   PRIVATE
   BinaryLogWriter
   SHMWriter
+)
+target_sources(
+  core_metrics
+  PRIVATE
+  FrameMetricsStore.cpp
 )
 
 if(NOT BUILD_UI)
