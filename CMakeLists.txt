@@ -46,15 +46,6 @@ block(PROPAGATE BUILD_UI)
   option(BUILD_UI "Enable building the UI components" ${BUILD_UI_DEFAULT})
 endblock()
 
-block(
-  PROPAGATE
-  CMAKE_PDB_OUTPUT_DIRECTORY
-  CMAKE_RUNTIME_OUTPUT_DIRECTORY
-  CMAKE_LIBRARY_OUTPUT_DIRECTORY
-)
-  include(cmake/output-directories.cmake)
-endblock()
-
 include(cmake/output-directories.cmake)
 
 block(PROPAGATE XRFrameTools_ABI_ID)
