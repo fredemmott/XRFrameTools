@@ -51,20 +51,4 @@ AutoUpdater::AutoUpdater() {
   dprint("Started updater with process {}", processInfo.dwProcessId);
 }
 
-void AutoUpdater::GiveFocusIfRunning() {
-  if (!mThread) {
-    return;
-  }
-  const auto now = std::chrono::steady_clock::now();
-  if (now - mLastGiveFocus < std::chrono::seconds(1)) {
-    return;
-  }
-  return;
-
-  wil::for_each_thread_window_nothrow(mThreadId, [](HWND hwnd) {
-    SetForegroundWindow(hwnd);
-    return false;
-  });
-}
-
 AutoUpdater::~AutoUpdater() = default;

@@ -10,8 +10,6 @@ class AutoUpdater {
   AutoUpdater();
   ~AutoUpdater();
 
-  void GiveFocusIfRunning();
-
  private:
   wil::unique_handle mProcess;
   wil::unique_handle mThread;
