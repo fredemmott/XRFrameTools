@@ -15,7 +15,9 @@
 #include <wil/com.h>
 
 #include <atomic>
+#include <expected>
 #include <format>
+#include <mutex>
 #include <numeric>
 #include <span>
 
@@ -24,11 +26,11 @@
 #include "Win32Utils.hpp"
 
 namespace {
-struct D3D11Frame {
-  D3D11Frame() = default;
-  explicit D3D11Frame(ID3D11Device* device) {
-    device->GetImmediateContext(mContext.put());
 
+struct D3D11Frame {
+  D3D11Frame() = delete;
+  explicit D3D11Frame(ID3D11Device* device, ID3D11DeviceContext* context)
+    : mContext(context) {
     D3D11_QUERY_DESC desc {D3D11_QUERY_TIMESTAMP_DISJOINT};
     device->CreateQuery(&desc, mDisjointQuery.put());
     desc = {D3D11_QUERY_TIMESTAMP};
@@ -36,10 +38,11 @@ struct D3D11Frame {
     device->CreateQuery(&desc, mEndRenderTimestampQuery.put());
   }
 
-  void StartRender() {
+  void StartRender(uint64_t predictedDisplayTime) {
     if (!(mContext && mDisjointQuery && mBeginRenderTimestampQuery)) {
       return;
     }
+    mPredictedDisplayTime = predictedDisplayTime;
     mDisplayTime = {};
     mContext->Begin(mDisjointQuery.get());
     // TIMESTAMP queries only have `End()` and `GetData()` called, never
@@ -52,49 +55,87 @@ struct D3D11Frame {
       return;
     }
     mDisplayTime = displayTime;
+#ifndef NDEBUG
+    if (mDisplayTime != mPredictedDisplayTime) {
+      dprint("Display time mismatch");
+      __debugbreak();
+    }
+#endif
+
     mContext->End(mEndRenderTimestampQuery.get());
     mContext->End(mDisjointQuery.get());
+  }
+
+  uint64_t GetPredictedDisplayTime() const noexcept {
+    return mPredictedDisplayTime;
   }
 
   uint64_t GetDisplayTime() const noexcept {
     return mDisplayTime;
   }
 
-  uint64_t GetRenderMicroseconds() {
-    if (!(mContext && mDisjointQuery && mBeginRenderTimestampQuery)) {
-      return 0;
-    }
+  enum class GpuDataError {
+    Pending,
+    Unusable,// e.g. Disjoint
+    MissingResources,
+  };
 
+  std::expected<uint64_t, GpuDataError> GetRenderMicroseconds() {
+    if (!(mContext && mDisjointQuery && mBeginRenderTimestampQuery)) {
+      mPredictedDisplayTime = {};
+      mDisplayTime = {};
+      return std::unexpected {GpuDataError::MissingResources};
+    }
     D3D11_QUERY_DATA_TIMESTAMP_DISJOINT disjoint {};
     uint64_t begin {};
     uint64_t end {};
-    mContext->GetData(mDisjointQuery.get(), &disjoint, sizeof(disjoint), 0);
+    const auto djResult = mContext->GetData(
+      mDisjointQuery.get(),
+      &disjoint,
+      sizeof(disjoint),
+      D3D11_ASYNC_GETDATA_DONOTFLUSH);
+    if (djResult == S_FALSE) {
+      return std::unexpected {GpuDataError::Pending};
+    }
+
+    mPredictedDisplayTime = {};
+    mDisplayTime = {};
+    if (djResult != S_OK) {
+      return std::unexpected {GpuDataError::Unusable};
+    }
     mContext->GetData(
       mBeginRenderTimestampQuery.get(), &begin, sizeof(begin), 0);
     mContext->GetData(mEndRenderTimestampQuery.get(), &end, sizeof(end), 0);
     if (disjoint.Disjoint || !(disjoint.Frequency && begin && end)) {
-      return 0;
+      return std::unexpected {GpuDataError::Unusable};
     }
 
     const auto diff = end - begin;
     const auto gcd = std::gcd(1000000, disjoint.Frequency);
     const auto micros = (diff * (1000000 / gcd)) / (disjoint.Frequency / gcd);
+
     return micros;
   }
 
  private:
+  ID3D11DeviceContext* mContext {nullptr};
+  uint64_t mPredictedDisplayTime {};
   uint64_t mDisplayTime {};
 
-  wil::com_ptr<ID3D11DeviceContext> mContext;
   wil::com_ptr<ID3D11Query> mDisjointQuery;
   wil::com_ptr<ID3D11Query> mBeginRenderTimestampQuery;
   wil::com_ptr<ID3D11Query> mEndRenderTimestampQuery;
 };
 
-std::array<D3D11Frame, 3> gFrames;
-std::atomic<std::size_t> gBeginFrameCounter {0};
-std::atomic<std::size_t> gEndFrameCounter {0};
+ID3D11Device* gDevice {nullptr};
+wil::com_ptr<ID3D11DeviceContext> gContext;
+std::mutex gFramesMutex;
+std::vector<D3D11Frame> gFrames;
+uint64_t gBeginFrameCounter {0};
+std::uint64_t gWaitedDisplayTime = {};
+
 std::atomic_flag gHooked;
+
 bool gIsEnabled {false};
 
 }// namespace
@@ -109,8 +150,21 @@ XrResult hooked_xrBeginFrame(
     return ret;
   }
 
-  auto& frame = gFrames[gBeginFrameCounter++ % gFrames.size()];
-  frame.StartRender();
+  if (const auto time = std::exchange(gWaitedDisplayTime, 0)) {
+    std::unique_lock lock(gFramesMutex);
+    auto it
+      = std::ranges::find(gFrames, 0, &D3D11Frame::GetPredictedDisplayTime);
+    if (it == gFrames.end()) {
+      if (gFrames.size() > 10) {
+        dprint("Runaway D3D11 frame timer pool size");
+        return ret;
+      }
+      gFrames.emplace_back(gDevice, gContext.get());
+      dprint("Increased D3D11 timer pool size to {}", gFrames.size());
+      it = gFrames.end() - 1;
+    }
+    it->StartRender(time);
+  }
 
   return ret;
 }
@@ -119,26 +173,48 @@ PFN_xrEndFrame next_xrEndFrame {nullptr};
 XrResult hooked_xrEndFrame(
   XrSession session,
   const XrFrameEndInfo* frameEndInfo) noexcept {
-  auto& frame = gFrames[gEndFrameCounter++ % gFrames.size()];
-  frame.StopRender(frameEndInfo->displayTime);
+  {
+    std::unique_lock lock(gFramesMutex);
+    auto it = std::ranges::find(
+      gFrames, frameEndInfo->displayTime, &D3D11Frame::GetPredictedDisplayTime);
+    if (it != gFrames.end()) {
+      it->StopRender(frameEndInfo->displayTime);
+    }
+  }
   return next_xrEndFrame(session, frameEndInfo);
 }
 
-static void LoggingHook(Frame& frame) {
+static APILayerAPI::LogFrameHookResult LoggingHook(Frame* frame) {
+  using Result = APILayerAPI::LogFrameHookResult;
   if (!gIsEnabled) {
-    return;
+    return Result::Ready;
   }
 
+  if (frame->mRenderGpu) {
+    return Result::Ready;
+  }
+
+  std::unique_lock lock(gFramesMutex);
   auto it = std::ranges::find(
-    gFrames, frame.mDisplayTime, &D3D11Frame::GetDisplayTime);
+    gFrames, frame->mDisplayTime, &D3D11Frame::GetDisplayTime);
   if (it == gFrames.end()) {
-    __debugbreak();
-    return;
+    return Result::Ready;
   }
+
   const auto timer = it->GetRenderMicroseconds();
-  if (timer) {
-    frame.mRenderGpu = timer;
+  if (timer.has_value()) {
+    frame->mRenderGpu = timer.value();
+    return Result::Ready;
   }
+  using enum D3D11Frame::GpuDataError;
+  switch (timer.error()) {
+    case Pending:
+      return Result::Pending;
+    case Unusable:
+    case MissingResources:
+      return Result::Ready;
+  }
+  return Result::Ready;
 }
 
 PFN_xrCreateSession next_xrCreateSession {nullptr};
@@ -158,14 +234,13 @@ XrResult hooked_xrCreateSession(
       continue;
     }
 
+    dprint("d3d11_metrics: session created");
+
     auto graphicsBinding
       = reinterpret_cast<const XrGraphicsBindingD3D11KHR*>(it);
-
-    for (auto&& frame: gFrames) {
-      frame = D3D11Frame {graphicsBinding->device};
-    }
-
-    dprint("d3d11_metrics: session created");
+    gFrames.clear();
+    gDevice = graphicsBinding->device;
+    gDevice->GetImmediateContext(gContext.put());
 
     if (!gHooked.test_and_set()) {
       const auto coreMetrics = GetModuleHandleW(CoreMetricsDll);
@@ -202,8 +277,23 @@ XrResult hooked_xrCreateSession(
   return ret;
 }
 
+PFN_xrWaitFrame next_xrWaitFrame {nullptr};
+XrResult hooked_xrWaitFrame(
+  XrSession session,
+  const XrFrameWaitInfo* frameWaitInfo,
+  XrFrameState* frameState) noexcept {
+  const auto ret = next_xrWaitFrame(session, frameWaitInfo, frameState);
+  if (XR_FAILED(ret)) {
+    gWaitedDisplayTime = 0;
+    return ret;
+  }
+  gWaitedDisplayTime = frameState->predictedDisplayTime;
+  return ret;
+}
+
 #define HOOKED_OPENXR_FUNCS(X) \
   X(CreateSession) \
+  X(WaitFrame) \
   X(BeginFrame) \
   X(EndFrame)
 

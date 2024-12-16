@@ -11,7 +11,11 @@
 // each other.
 
 struct APILayerAPI final {
-  using LogFrameHook = void (*)(Frame&);
+  enum class LogFrameHookResult {
+    Ready,
+    Pending,
+  };
+  using LogFrameHook = LogFrameHookResult (*)(Frame*);
   using PFN_AppendLogFrameHook = void (*)(LogFrameHook);
   PFN_AppendLogFrameHook AppendLogFrameHook {nullptr};
 };

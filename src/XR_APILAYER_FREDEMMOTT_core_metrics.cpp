@@ -29,10 +29,7 @@ static std::optional<BinaryLogWriter> gBinaryLogger;
 static FrameMetricsStore gFrameMetrics;
 static std::vector<APILayerAPI::LogFrameHook> gLoggingHooks;
 
-struct QueueFrame : Frame {
-  std::size_t mDelay {2};
-};
-static std::deque<QueueFrame> gLogQueue;
+static std::deque<Frame> gLogQueue;
 static std::mutex gLogQueueMutex;
 
 void AppendLogFrameHook(APILayerAPI::LogFrameHook hook) {
@@ -56,9 +53,17 @@ APILayerAPI* XRFrameTools_GetAPILayerAPI(
   return &gAPILayerAPI;
 }
 
-static void LogFrame(Frame& frame) {
+enum class LogFrameResult {
+  Complete,
+  Pending,
+};
+
+[[nodiscard]]
+static LogFrameResult LogFrame(Frame& frame) {
   for (auto&& hook: gLoggingHooks) {
-    std::invoke(hook, frame);
+    if (hook(&frame) == APILayerAPI::LogFrameHookResult::Pending) {
+      return LogFrameResult::Pending;
+    }
   }
   gSHM.LogFrame(frame);
 
@@ -67,7 +72,7 @@ static void LogFrame(Frame& frame) {
       dprint("tearing down binary logger");
       gBinaryLogger = std::nullopt;
     }
-    return;
+    return LogFrameResult::Complete;
   }
 
   if (!gBinaryLogger) {
@@ -76,6 +81,20 @@ static void LogFrame(Frame& frame) {
   }
 
   gBinaryLogger->LogFrame(frame);
+  return LogFrameResult::Complete;
+}
+
+static void FlushMetrics() {
+  if (gLogQueue.empty()) {
+    return;
+  }
+  std::unique_lock<std::mutex> lock(gLogQueueMutex);
+  while (!gLogQueue.empty()) {
+    if (LogFrame(gLogQueue.front()) == LogFrameResult::Pending) {
+      break;
+    }
+    gLogQueue.pop_front();
+  }
 }
 
 PFN_xrWaitFrame next_xrWaitFrame {nullptr};
@@ -84,7 +103,6 @@ XrResult hooked_xrWaitFrame(
   const XrFrameWaitInfo* frameWaitInfo,
   XrFrameState* frameState) noexcept {
   auto& frame = gFrameMetrics.GetForWaitFrame();
-
   QueryPerformanceCounter(&frame.mWaitFrameStart);
   const auto ret = next_xrWaitFrame(session, frameWaitInfo, frameState);
   QueryPerformanceCounter(&frame.mWaitFrameStop);
@@ -92,17 +110,6 @@ XrResult hooked_xrWaitFrame(
   if (XR_FAILED(ret)) [[unlikely]] {
     frame.Reset();
     return ret;
-  }
-
-  {
-    std::unique_lock<std::mutex> lock(gLogQueueMutex);
-    for (auto& it: gLogQueue) {
-      --it.mDelay;
-    }
-    while ((!gLogQueue.empty()) && gLogQueue.front().mDelay == 0) {
-      LogFrame(gLogQueue.front());
-      gLogQueue.pop_front();
-    }
   }
 
   frame.mDisplayTime = frameState->predictedDisplayTime;
@@ -114,6 +121,8 @@ PFN_xrBeginFrame next_xrBeginFrame {nullptr};
 XrResult hooked_xrBeginFrame(
   XrSession session,
   const XrFrameBeginInfo* frameBeginInfo) noexcept {
+  FlushMetrics();
+
   auto& frame = gFrameMetrics.GetForBeginFrame();
 
   QueryPerformanceCounter(&frame.mBeginFrameStart);
@@ -138,7 +147,7 @@ XrResult hooked_xrEndFrame(
 
   if (XR_SUCCEEDED(ret)) [[likely]] {
     std::unique_lock lock(gLogQueueMutex);
-    gLogQueue.push_back(QueueFrame {static_cast<Frame&>(frame)});
+    gLogQueue.push_back({static_cast<const Frame&>(frame)});
   }
 
   frame.Reset();

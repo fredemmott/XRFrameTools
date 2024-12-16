@@ -7,17 +7,24 @@
 // 3. Define HOOKED_OPENXR_FUNCS(X) macro, e.g. X(WaitFrame)
 // 4. include "APILayerEntrypoints.inc.cpp"
 
+#include <source_location>
 template <class F, auto Next, auto Layer>
 struct XRFuncDelegator;
 
 template <class TRet, class... TArgs, auto LayerFn, auto NextFn>
 struct XRFuncDelegator<TRet(XRAPI_PTR*)(TArgs...), LayerFn, NextFn> {
-  static XRAPI_ATTR TRet XRAPI_CALL Invoke(TArgs... args) noexcept {
+  static XRAPI_ATTR TRet XRAPI_CALL Invoke(TArgs... args) try {
     if (!*NextFn) {
       return XR_ERROR_FUNCTION_UNSUPPORTED;
     }
 
     return std::invoke(LayerFn, args...);
+  } catch (const std::exception& e) {
+    dprint("Exception thrown from XR func: {}", e.what());
+    return XR_ERROR_RUNTIME_FAILURE;
+  } catch (...) {
+    dprint("Unknown exception thrown from XR func");
+    return XR_ERROR_RUNTIME_FAILURE;
   }
 };
 
