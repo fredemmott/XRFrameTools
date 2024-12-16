@@ -13,7 +13,7 @@ struct AggregatedFrameMetrics : FrameMetrics {
   std::chrono::microseconds mSincePreviousFrame {};
 };
 
-class MetricsAggregator {
+class MetricsAggregator final {
  public:
   MetricsAggregator() = delete;
   MetricsAggregator(const MetricsAggregator&) = delete;
@@ -25,6 +25,12 @@ class MetricsAggregator {
 
   void Push(const FramePerformanceCounters&);
   [[nodiscard]] std::optional<AggregatedFrameMetrics> Flush();
+
+  void Reset() {
+    auto pcm = mPerformanceCounterMath;
+    this->~MetricsAggregator();
+    new (this) MetricsAggregator(mPerformanceCounterMath);
+  }
 
  private:
   const PerformanceCounterMath mPerformanceCounterMath;

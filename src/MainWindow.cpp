@@ -462,188 +462,189 @@ void MainWindow::LiveDataSection() {
   ImGui::SameLine();
   if (ImGui::Button("Clear")) {
     mLiveApp = {};
-    (void)mLiveData.mAggregator.Flush();
+    mLiveData.mSHMFrameIndex = 0;
+    mLiveData.mAggregator.Reset();
     mLiveData.mChartFrames = {LiveData::BufferSize};
   }
 
   if (mSHM.IsValid() && mSHM->mWriterProcessID != mLiveApp.mProcessID) {
     mLiveApp = {.mProcessID = mSHM->mWriterProcessID};
+    mLiveData.mSHMFrameIndex = 0;
+  }
 
-    wil::unique_handle process {OpenProcess(
-      PROCESS_QUERY_LIMITED_INFORMATION, FALSE, mSHM->mWriterProcessID)};
-    if (process) {
-      mLiveApp.mExecutablePath
-        = wil::QueryFullProcessImageNameW(process.get()).get();
-      BOOL is32Bit = FALSE;
-      if (IsWow64Process(process.get(), &is32Bit)) {
-        mLiveApp.mProcessBitness = is32Bit ? 32 : 64;
-      }
+  wil::unique_handle process {OpenProcess(
+    PROCESS_QUERY_LIMITED_INFORMATION, FALSE, mSHM->mWriterProcessID)};
+  if (process) {
+    mLiveApp.mExecutablePath
+      = wil::QueryFullProcessImageNameW(process.get()).get();
+    BOOL is32Bit = FALSE;
+    if (IsWow64Process(process.get(), &is32Bit)) {
+      mLiveApp.mProcessBitness = is32Bit ? 32 : 64;
     }
   }
+}
 
-  ImGui::SameLine();
-  if (mLiveApp.mExecutablePath.empty()) {
-    ImGui::TextDisabled("No current OpenXR application detected");
-  } else {
-    ImGui::TextDisabled(
-      "Showing PID %ld: %s (%s)",
-      mLiveApp.mProcessID,
-      mLiveApp.mExecutablePath.string().c_str(),
-      (mLiveApp.mProcessBitness.has_value()
-         ? std::format("{}-bit", mLiveApp.mProcessBitness.value())
-         : "unknown architecture")
-        .c_str());
-  }
+ImGui::SameLine();
+if (mLiveApp.mExecutablePath.empty()) {
+  ImGui::TextDisabled("No current OpenXR application detected");
+} else {
+  ImGui::TextDisabled(
+    "Showing PID %ld: %s (%s)",
+    mLiveApp.mProcessID,
+    mLiveApp.mExecutablePath.string().c_str(),
+    (mLiveApp.mProcessBitness.has_value()
+       ? std::format("{}-bit", mLiveApp.mProcessBitness.value())
+       : "unknown architecture")
+      .c_str());
+}
 
-  const auto slowestFrameMicroseconds
-    = std::ranges::max_element(mLiveData.mChartFrames, {}, [](const auto& it) {
+const auto slowestFrameMicroseconds
+  = std::ranges::max_element(mLiveData.mChartFrames, {}, [](const auto& it) {
+      return it.mSincePreviousFrame.count();
+    })->mSincePreviousFrame.count();
+const auto maxMicroseconds = std::clamp(
+  static_cast<double>(RoundUp(slowestFrameMicroseconds, 1000)),
+  0.0,
+  1000000.0 / 15);
+const auto SetupMicrosecondsAxis = [maxMicroseconds](ImAxis axis) {
+  ImPlot::SetupAxis(axis, "µs");
+  ImPlot::SetupAxisLimits(axis, 0.0, maxMicroseconds, ImPlotCond_Always);
+};
+
+if (const auto plot = ImGuiScoped::ImPlot("FPS")) {
+  ImPlot::SetupAxis(ImAxis_X1);
+
+  ImPlot::SetupAxis(ImAxis_Y1, "hz");
+  const auto fastestFrameMicroseconds
+    = std::ranges::min_element(mLiveData.mChartFrames, {}, [](const auto& it) {
         return it.mSincePreviousFrame.count();
       })->mSincePreviousFrame.count();
-  const auto maxMicroseconds = std::clamp(
-    static_cast<double>(RoundUp(slowestFrameMicroseconds, 1000)),
+  const auto maxFPS = (fastestFrameMicroseconds == 0)
+    ? 72.0
+    : (1000000.0 / fastestFrameMicroseconds);
+  ImPlot::SetupAxisLimits(ImAxis_Y1, 0, RoundUp(maxFPS, 5), ImPlotCond_Always);
+  SetupMicrosecondsAxis(ImAxis_Y2);
+
+  ImPlot::SetAxes(ImAxis_X1, ImAxis_Y1);
+  ImPlot::PlotLineG(
+    "FPS",
+    [](int idx, void* user_data) -> ImPlotPoint {
+      const auto& frame
+        = static_cast<LiveData::ChartFrames*>(user_data)->at(idx);
+      const auto interval = frame.mSincePreviousFrame.count();
+      return LiveData::PlotPoint {
+        idx,
+        interval ? 1000000.0f / interval : 0,
+      };
+    },
+    mLiveData.mChartFrames.data(),
+    mLiveData.mChartFrames.size());
+
+  ImPlot::SetAxes(ImAxis_X1, ImAxis_Y2);
+  ImPlot::PlotLineG(
+    "Frame Interval",
+    [](int idx, void* user_data) -> ImPlotPoint {
+      const auto& frame
+        = static_cast<LiveData::ChartFrames*>(user_data)->at(idx);
+      return LiveData::PlotPoint {
+        idx,
+        frame.mSincePreviousFrame.count(),
+      };
+    },
+    mLiveData.mChartFrames.data(),
+    mLiveData.mChartFrames.size());
+}
+
+if (const auto plot = ImGuiScoped::ImPlot("Frame Timings")) {
+  ImPlot::SetupAxis(ImAxis_X1);
+  SetupMicrosecondsAxis(ImAxis_Y1);
+  ImPlot::SetAxes(ImAxis_X1, ImAxis_Y1);
+
+  ImStackedAreaPlotter sap {mFrameTimingPlotKind};
+  sap.Plot(
+    "Runtime CPU",
+    &LiveData::PlotMicroseconds<&AggregatedFrameMetrics::mRuntimeCpu>,
+    mLiveData.mChartFrames.data(),
+    mLiveData.mChartFrames.size());
+  sap.Plot(
+    "App CPU",
+    &LiveData::PlotMicroseconds<&AggregatedFrameMetrics::mAppCpu>,
+    mLiveData.mChartFrames.data(),
+    mLiveData.mChartFrames.size());
+  sap.Plot(
+    "Render CPU",
+    &LiveData::PlotMicroseconds<&AggregatedFrameMetrics::mRenderCpu>,
+    mLiveData.mChartFrames.data(),
+    mLiveData.mChartFrames.size());
+  sap.Plot(
+    "Wait CPU",
+    &LiveData::PlotMicroseconds<&AggregatedFrameMetrics::mWaitCpu>,
+    mLiveData.mChartFrames.data(),
+    mLiveData.mChartFrames.size());
+
+  ImPlot::PlotLineG(
+    "Render GPU",
+    &LiveData::PlotMicroseconds<&AggregatedFrameMetrics::mRenderGpu>,
+    mLiveData.mChartFrames.data(),
+    mLiveData.mChartFrames.size());
+}
+
+using PlotKind = ImStackedAreaPlotter::Kind;
+if (ImGui::RadioButton(
+      "Stacked area",
+      mFrameTimingPlotKind == PlotKind::StackedArea)) {
+  mFrameTimingPlotKind = PlotKind::StackedArea;
+}
+ImGui::SameLine();
+if (ImGui::RadioButton("Lines", mFrameTimingPlotKind == PlotKind::Lines)) {
+  mFrameTimingPlotKind = PlotKind::Lines;
+}
+
+if (const auto plot = ImGuiScoped::ImPlot("Video Memory")) {
+  const auto max = std::ranges::max_element(
+    mLiveData.mChartFrames, {}, [](const AggregatedFrameMetrics& frame) {
+      return std::max(
+        frame.mVideoMemoryInfo.AvailableForReservation,
+        frame.mVideoMemoryInfo.Budget);
+    });
+
+  ImPlot::SetupAxis(ImAxis_X1);
+  ImPlot::SetupAxis(ImAxis_Y1, "mb");
+  ImPlot::SetupAxisLimits(
+    ImAxis_Y1,
     0.0,
-    1000000.0 / 15);
-  const auto SetupMicrosecondsAxis = [maxMicroseconds](ImAxis axis) {
-    ImPlot::SetupAxis(axis, "µs");
-    ImPlot::SetupAxisLimits(axis, 0.0, maxMicroseconds, ImPlotCond_Always);
-  };
+    RoundUp(
+      std::max(
+        max->mVideoMemoryInfo.AvailableForReservation,
+        max->mVideoMemoryInfo.Budget),
+      1024 * 1024 * 1024)
+      / (1024 * 1024),
+    ImPlotCond_Always);
+  ImPlot::SetAxes(ImAxis_X1, ImAxis_Y1);
 
-  if (const auto plot = ImGuiScoped::ImPlot("FPS")) {
-    ImPlot::SetupAxis(ImAxis_X1);
-
-    ImPlot::SetupAxis(ImAxis_Y1, "hz");
-    const auto fastestFrameMicroseconds
-      = std::ranges::min_element(
-          mLiveData.mChartFrames,
-          {},
-          [](const auto& it) { return it.mSincePreviousFrame.count(); })
-          ->mSincePreviousFrame.count();
-    const auto maxFPS = (fastestFrameMicroseconds == 0)
-      ? 72.0
-      : (1000000.0 / fastestFrameMicroseconds);
-    ImPlot::SetupAxisLimits(
-      ImAxis_Y1, 0, RoundUp(maxFPS, 5), ImPlotCond_Always);
-    SetupMicrosecondsAxis(ImAxis_Y2);
-
-    ImPlot::SetAxes(ImAxis_X1, ImAxis_Y1);
-    ImPlot::PlotLineG(
-      "FPS",
-      [](int idx, void* user_data) -> ImPlotPoint {
-        const auto& frame
-          = static_cast<LiveData::ChartFrames*>(user_data)->at(idx);
-        const auto interval = frame.mSincePreviousFrame.count();
-        return LiveData::PlotPoint {
-          idx,
-          interval ? 1000000.0f / interval : 0,
-        };
-      },
-      mLiveData.mChartFrames.data(),
-      mLiveData.mChartFrames.size());
-
-    ImPlot::SetAxes(ImAxis_X1, ImAxis_Y2);
-    ImPlot::PlotLineG(
-      "Frame Interval",
-      [](int idx, void* user_data) -> ImPlotPoint {
-        const auto& frame
-          = static_cast<LiveData::ChartFrames*>(user_data)->at(idx);
-        return LiveData::PlotPoint {
-          idx,
-          frame.mSincePreviousFrame.count(),
-        };
-      },
-      mLiveData.mChartFrames.data(),
-      mLiveData.mChartFrames.size());
-  }
-
-  if (const auto plot = ImGuiScoped::ImPlot("Frame Timings")) {
-    ImPlot::SetupAxis(ImAxis_X1);
-    SetupMicrosecondsAxis(ImAxis_Y1);
-    ImPlot::SetAxes(ImAxis_X1, ImAxis_Y1);
-
-    ImStackedAreaPlotter sap {mFrameTimingPlotKind};
-    sap.Plot(
-      "Runtime CPU",
-      &LiveData::PlotMicroseconds<&AggregatedFrameMetrics::mRuntimeCpu>,
-      mLiveData.mChartFrames.data(),
-      mLiveData.mChartFrames.size());
-    sap.Plot(
-      "App CPU",
-      &LiveData::PlotMicroseconds<&AggregatedFrameMetrics::mAppCpu>,
-      mLiveData.mChartFrames.data(),
-      mLiveData.mChartFrames.size());
-    sap.Plot(
-      "Render CPU",
-      &LiveData::PlotMicroseconds<&AggregatedFrameMetrics::mRenderCpu>,
-      mLiveData.mChartFrames.data(),
-      mLiveData.mChartFrames.size());
-    sap.Plot(
-      "Wait CPU",
-      &LiveData::PlotMicroseconds<&AggregatedFrameMetrics::mWaitCpu>,
-      mLiveData.mChartFrames.data(),
-      mLiveData.mChartFrames.size());
-
-    ImPlot::PlotLineG(
-      "Render GPU",
-      &LiveData::PlotMicroseconds<&AggregatedFrameMetrics::mRenderGpu>,
-      mLiveData.mChartFrames.data(),
-      mLiveData.mChartFrames.size());
-  }
-
-  using PlotKind = ImStackedAreaPlotter::Kind;
-  if (ImGui::RadioButton(
-        "Stacked area", mFrameTimingPlotKind == PlotKind::StackedArea)) {
-    mFrameTimingPlotKind = PlotKind::StackedArea;
-  }
-  ImGui::SameLine();
-  if (ImGui::RadioButton("Lines", mFrameTimingPlotKind == PlotKind::Lines)) {
-    mFrameTimingPlotKind = PlotKind::Lines;
-  }
-
-  if (const auto plot = ImGuiScoped::ImPlot("Video Memory")) {
-    const auto max = std::ranges::max_element(
-      mLiveData.mChartFrames, {}, [](const AggregatedFrameMetrics& frame) {
-        return std::max(
-          frame.mVideoMemoryInfo.AvailableForReservation,
-          frame.mVideoMemoryInfo.Budget);
-      });
-
-    ImPlot::SetupAxis(ImAxis_X1);
-    ImPlot::SetupAxis(ImAxis_Y1, "mb");
-    ImPlot::SetupAxisLimits(
-      ImAxis_Y1,
-      0.0,
-      RoundUp(
-        std::max(
-          max->mVideoMemoryInfo.AvailableForReservation,
-          max->mVideoMemoryInfo.Budget),
-        1024 * 1024 * 1024)
-        / (1024 * 1024),
-      ImPlotCond_Always);
-    ImPlot::SetAxes(ImAxis_X1, ImAxis_Y1);
-
-    ImPlot::PlotLineG(
-      "Current Usage",
-      &LiveData::PlotVideoMemory<&DXGI_QUERY_VIDEO_MEMORY_INFO::CurrentUsage>,
-      mLiveData.mChartFrames.data(),
-      mLiveData.mChartFrames.size());
-    ImPlot::PlotLineG(
-      "Budget",
-      &LiveData::PlotVideoMemory<&DXGI_QUERY_VIDEO_MEMORY_INFO::Budget>,
-      mLiveData.mChartFrames.data(),
-      mLiveData.mChartFrames.size());
-    ImPlot::PlotLineG(
-      "Current Reservation",
-      &LiveData::PlotVideoMemory<
-        &DXGI_QUERY_VIDEO_MEMORY_INFO::CurrentReservation>,
-      mLiveData.mChartFrames.data(),
-      mLiveData.mChartFrames.size());
-    ImPlot::PlotLineG(
-      "Available for Reservation",
-      &LiveData::PlotVideoMemory<
-        &DXGI_QUERY_VIDEO_MEMORY_INFO::AvailableForReservation>,
-      mLiveData.mChartFrames.data(),
-      mLiveData.mChartFrames.size());
-  }
+  ImPlot::PlotLineG(
+    "Current Usage",
+    &LiveData::PlotVideoMemory<&DXGI_QUERY_VIDEO_MEMORY_INFO::CurrentUsage>,
+    mLiveData.mChartFrames.data(),
+    mLiveData.mChartFrames.size());
+  ImPlot::PlotLineG(
+    "Budget",
+    &LiveData::PlotVideoMemory<&DXGI_QUERY_VIDEO_MEMORY_INFO::Budget>,
+    mLiveData.mChartFrames.data(),
+    mLiveData.mChartFrames.size());
+  ImPlot::PlotLineG(
+    "Current Reservation",
+    &LiveData::PlotVideoMemory<
+      &DXGI_QUERY_VIDEO_MEMORY_INFO::CurrentReservation>,
+    mLiveData.mChartFrames.data(),
+    mLiveData.mChartFrames.size());
+  ImPlot::PlotLineG(
+    "Available for Reservation",
+    &LiveData::PlotVideoMemory<
+      &DXGI_QUERY_VIDEO_MEMORY_INFO::AvailableForReservation>,
+    mLiveData.mChartFrames.data(),
+    mLiveData.mChartFrames.size());
+}
 }
 
 void MainWindow::AboutSection() {
