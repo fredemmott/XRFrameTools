@@ -7,6 +7,9 @@ configure_file(
   NEWLINE_STYLE UNIX
 )
 
+add_library(ABIKey INTERFACE)
+target_include_directories(ABIKey INTERFACE "${GENERATED_INCLUDE_DIR}")
+
 include(BinaryLogReader.cmake)
 include(BinaryLogWriter.cmake)
 include(Config.cmake)

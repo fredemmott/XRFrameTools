@@ -2,4 +2,5 @@
 // SPDX-License-Identifier: MIT
 #pragma once
 
-static constexpr wchar_t ABIKey[] {L"@XRFrameTools_ABI_ID@"};
+static constexpr char ABIKey[] {"@XRFrameTools_ABI_ID@"};
+static constexpr wchar_t ABIKeyW[] {L"@XRFrameTools_ABI_ID@"};

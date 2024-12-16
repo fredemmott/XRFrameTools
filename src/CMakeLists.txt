@@ -44,8 +44,8 @@ endmacro()
 
 add_custom_target(api-layers ALL)
 macro(add_xr_api_layer TARGET)
-  add_library(${TARGET} MODULE ${ARGN} FrameMetricsStore.hpp)
-  target_link_libraries(${TARGET} PRIVATE openxr Config)
+  add_library(${TARGET} MODULE ${ARGN} FrameMetricsStore.hpp APILayerAPI.hpp)
+  target_link_libraries(${TARGET} PRIVATE openxr Config ABIKey)
   set_target_properties(
     ${TARGET}
     PROPERTIES

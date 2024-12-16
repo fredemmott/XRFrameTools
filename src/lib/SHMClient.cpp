@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: MIT
 
 #include "SHMClient.hpp"
-#include "SHM.hpp"
-#include "CheckHResult.hpp"
+
 #include <XRFrameTools/ABIKey.hpp>
 
+#include "CheckHResult.hpp"
+#include "SHM.hpp"
+
 static inline auto GetSHMPath() {
-  return std::format(L"com.fredemmott.XRFrameTools/SHM/{}", ABIKey);
+  return std::format(L"com.fredemmott.XRFrameTools/SHM/{}", ABIKeyW);
 }
 
 SHMClient::SHMClient() {

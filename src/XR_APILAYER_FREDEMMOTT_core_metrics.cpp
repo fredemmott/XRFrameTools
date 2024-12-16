@@ -10,13 +10,15 @@
 
 #include <atomic>
 #include <format>
-#include <ranges>
 
 #include "BinaryLogWriter.hpp"
 #include "Config.hpp"
 #include "FrameMetricsStore.hpp"
 #include "SHMWriter.hpp"
 #include "Win32Utils.hpp"
+
+#define APILAYER_API __declspec(dllexport)
+#include "APILayerAPI.hpp"
 
 #define HOOKED_OPENXR_FUNCS(X) \
   X(WaitFrame) \
@@ -28,6 +30,24 @@ static auto gConfig = Config::GetForOpenXRAPILayer();
 static SHMWriter gSHM;
 static std::optional<BinaryLogWriter> gBinaryLogger;
 static FrameMetricsStore gFrameMetrics;
+static APILayerAPI gAPILayerAPI {};
+
+FrameMetricsStore* APILayerAPI::GetFrameMetricsStore() {
+  return &gFrameMetrics;
+}
+
+APILayerAPI* XRFrameTools_GetAPILayerAPI(
+  const char* abiKey,
+  std::size_t abiKeyLength) {
+  if (abiKeyLength != sizeof(ABIKey)) {
+    return nullptr;
+  }
+  if (std::string_view {abiKey} != std::string_view {ABIKey}) {
+    return nullptr;
+  }
+
+  return &gAPILayerAPI;
+}
 
 static void LogFrame(const FramePerformanceCounters& frame) {
   gSHM.LogFrame(frame);
