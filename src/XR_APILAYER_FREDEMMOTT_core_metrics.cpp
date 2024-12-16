@@ -18,23 +18,30 @@
 #include "Win32Utils.hpp"
 
 #define APILAYER_API __declspec(dllexport)
-#include "APILayerAPI.hpp"
+#include <deque>
 
-#define HOOKED_OPENXR_FUNCS(X) \
-  X(WaitFrame) \
-  X(BeginFrame) \
-  X(EndFrame)
+#include "APILayerAPI.hpp"
 
 static auto gConfig = Config::GetForOpenXRAPILayer();
 
 static SHMWriter gSHM;
 static std::optional<BinaryLogWriter> gBinaryLogger;
 static FrameMetricsStore gFrameMetrics;
-static APILayerAPI gAPILayerAPI {};
+static std::vector<APILayerAPI::LogFrameHook> gLoggingHooks;
 
-FrameMetricsStore* APILayerAPI::GetFrameMetricsStore() {
-  return &gFrameMetrics;
+struct QueueFrame : Frame {
+  std::size_t mDelay {2};
+};
+static std::deque<QueueFrame> gLogQueue;
+static std::mutex gLogQueueMutex;
+
+void AppendLogFrameHook(APILayerAPI::LogFrameHook hook) {
+  gLoggingHooks.push_back(hook);
 }
+
+static APILayerAPI gAPILayerAPI {
+  .AppendLogFrameHook = &AppendLogFrameHook,
+};
 
 APILayerAPI* XRFrameTools_GetAPILayerAPI(
   const char* abiKey,
@@ -49,7 +56,10 @@ APILayerAPI* XRFrameTools_GetAPILayerAPI(
   return &gAPILayerAPI;
 }
 
-static void LogFrame(const FramePerformanceCounters& frame) {
+static void LogFrame(Frame& frame) {
+  for (auto&& hook: gLoggingHooks) {
+    std::invoke(hook, frame);
+  }
   gSHM.LogFrame(frame);
 
   if (!gConfig.IsBinaryLoggingEnabled()) {
@@ -84,6 +94,17 @@ XrResult hooked_xrWaitFrame(
     return ret;
   }
 
+  {
+    std::unique_lock<std::mutex> lock(gLogQueueMutex);
+    for (auto& it: gLogQueue) {
+      --it.mDelay;
+    }
+    while ((!gLogQueue.empty()) && gLogQueue.front().mDelay == 0) {
+      LogFrame(gLogQueue.front());
+      gLogQueue.pop_front();
+    }
+  }
+
   frame.mDisplayTime = frameState->predictedDisplayTime;
   frame.mCanBegin.store(true);
   return ret;
@@ -116,11 +137,17 @@ XrResult hooked_xrEndFrame(
   QueryPerformanceCounter(&frame.mEndFrameStop);
 
   if (XR_SUCCEEDED(ret)) [[likely]] {
-    LogFrame(frame);
+    std::unique_lock lock(gLogQueueMutex);
+    gLogQueue.push_back(QueueFrame {static_cast<Frame&>(frame)});
   }
 
   frame.Reset();
   return ret;
 }
+
+#define HOOKED_OPENXR_FUNCS(X) \
+  X(WaitFrame) \
+  X(BeginFrame) \
+  X(EndFrame)
 
 #include "APILayerEntrypoints.inc.cpp"

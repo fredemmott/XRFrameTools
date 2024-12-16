@@ -75,6 +75,10 @@ target_sources(
   PRIVATE
   FrameMetricsStore.cpp
 )
+add_xr_api_layer(
+  d3d11_metrics
+  XR_APILAYER_FREDEMMOTT_d3d11_metrics.cpp
+)
 
 if(NOT BUILD_UI)
   return()

@@ -54,3 +54,10 @@ void dprint(std::format_string<Args...> format, Args&&... args) {
   const auto outer = std::format("XRFrameTools: {}\n", inner);
   OutputDebugStringA(outer.data());
 }
+
+template <class... Args>
+void dprint(std::wformat_string<Args...> format, Args&&... args) {
+  const auto inner = std::format(format, std::forward<Args>(args)...);
+  const auto outer = std::format(L"XRFrameTools: {}\n", inner);
+  OutputDebugStringW(outer.data());
+}
