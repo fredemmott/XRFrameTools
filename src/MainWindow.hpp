@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: MIT
 #pragma once
 
+#include <imgui.h>
+#include <implot.h>
+
 #include <vector>
 
 #include "AutoUpdater.hpp"
@@ -13,6 +16,63 @@
 #include "MetricsAggregator.hpp"
 #include "SHMReader.hpp"
 #include "Window.hpp"
+
+struct LiveData {
+  LiveData();
+  template <class T>
+  struct PlotPoint : ImPlotPoint {
+    PlotPoint(const int idx, const T value)
+      : ImPlotPoint(
+          static_cast<double>(idx) / LiveData::ChartFPS,
+          static_cast<double>(value)) {
+    }
+  };
+
+  static constexpr size_t ChartFPS = 30;
+  static constexpr auto ChartInterval
+    = std::chrono::microseconds(1000000) / ChartFPS;
+
+  static constexpr size_t HistorySeconds = 30;
+  static constexpr size_t BufferSize = ChartFPS * HistorySeconds;
+
+  bool mEnabled {true};
+  std::chrono::steady_clock::time_point mLastChartFrameAt {};
+  LARGE_INTEGER mLatestMetricsAt {};
+  AggregatedFrameMetrics mLatestMetrics {};
+
+  uint64_t mSHMFrameIndex {};
+
+  MetricsAggregator mAggregator;
+
+  using ChartFrames = ContiguousRingBuffer<AggregatedFrameMetrics, BufferSize>;
+
+  ChartFrames mChartFrames {BufferSize};
+
+  template <auto Getter>
+  static ImPlotPoint PlotFrame(int idx, void* user_data) {
+    const auto& frame = static_cast<LiveData::ChartFrames*>(user_data)->at(idx);
+    return PlotPoint {
+      idx,
+      std::invoke(Getter, frame),
+    };
+  }
+
+  template <auto Getter>
+  static ImPlotPoint PlotMicroseconds(int idx, void* user_data) {
+    return PlotFrame<[](const AggregatedFrameMetrics& frame) {
+      return duration_cast<std::chrono::microseconds>(
+               std::invoke(Getter, frame))
+        .count();
+    }>(idx, user_data);
+  }
+
+  template <auto Getter>
+  static ImPlotPoint PlotVideoMemory(int idx, void* user_data) {
+    return PlotFrame<[](const AggregatedFrameMetrics& frame) {
+      return std::invoke(Getter, frame.mVideoMemoryInfo) / (1024 * 1024);
+    }>(idx, user_data);
+  }
+};
 
 class MainWindow final : public Window {
  public:
@@ -53,32 +113,7 @@ class MainWindow final : public Window {
   };
   LiveApp mLiveApp;
 
-  struct LiveData {
-    LiveData();
-    template <class T>
-    struct PlotPoint;
-
-    static constexpr size_t ChartFPS = 30;
-    static constexpr auto ChartInterval
-      = std::chrono::microseconds(1000000) / ChartFPS;
-
-    static constexpr size_t HistorySeconds = 30;
-    static constexpr size_t BufferSize = ChartFPS * HistorySeconds;
-
-    bool mEnabled {true};
-    std::chrono::steady_clock::time_point mLastChartFrameAt {};
-    LARGE_INTEGER mLatestMetricsAt {};
-    AggregatedFrameMetrics mLatestMetrics {};
-
-    uint64_t mSHMFrameIndex {};
-
-    MetricsAggregator mAggregator;
-
-    using ChartFrames
-      = ContiguousRingBuffer<AggregatedFrameMetrics, BufferSize>;
-
-    ChartFrames mChartFrames {BufferSize};
-  } mLiveData;
+  LiveData mLiveData;
   std::mutex mLiveDataMutex;
   std::jthread mLiveDataThread;
   void UpdateLiveDataThreadEntry(const std::stop_token);

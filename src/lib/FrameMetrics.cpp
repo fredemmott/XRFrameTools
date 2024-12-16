@@ -22,5 +22,7 @@ FrameMetrics::FrameMetrics(
   mRenderCpu = pcm.ToDuration(fpc.mBeginFrameStop, fpc.mEndFrameStart);
   mRuntimeCpu = pcm.ToDuration(fpc.mBeginFrameStart, fpc.mBeginFrameStop)
     + pcm.ToDuration(fpc.mEndFrameStart, fpc.mEndFrameStop);
+
   mRenderGpu = std::chrono::microseconds(fpc.mRenderGpu);
+  mVideoMemoryInfo = fpc.mVideoMemoryInfo;
 }

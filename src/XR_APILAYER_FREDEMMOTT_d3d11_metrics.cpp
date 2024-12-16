@@ -29,8 +29,14 @@ namespace {
 
 struct D3D11Frame {
   D3D11Frame() = delete;
-  explicit D3D11Frame(ID3D11Device* device, ID3D11DeviceContext* context)
-    : mContext(context) {
+  explicit D3D11Frame(ID3D11Device* device) {
+    device->GetImmediateContext(mContext.put());
+    wil::com_ptr<IDXGIDevice> dxgiDevice;
+    device->QueryInterface(dxgiDevice.put());
+    wil::com_ptr<IDXGIAdapter> dxgiAdapter;
+    dxgiDevice->GetAdapter(dxgiAdapter.put());
+    dxgiAdapter->QueryInterface(mAdapter.put());
+
     D3D11_QUERY_DESC desc {D3D11_QUERY_TIMESTAMP_DISJOINT};
     device->CreateQuery(&desc, mDisjointQuery.put());
     desc = {D3D11_QUERY_TIMESTAMP};
@@ -44,6 +50,7 @@ struct D3D11Frame {
     }
     mPredictedDisplayTime = predictedDisplayTime;
     mDisplayTime = {};
+    mVideoMemoryInfo = {};
     mContext->Begin(mDisjointQuery.get());
     // TIMESTAMP queries only have `End()` and `GetData()` called, never
     // `Begin()`
@@ -64,6 +71,12 @@ struct D3D11Frame {
 
     mContext->End(mEndRenderTimestampQuery.get());
     mContext->End(mDisjointQuery.get());
+    mAdapter->QueryVideoMemoryInfo(
+      0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &mVideoMemoryInfo);
+  }
+
+  void GetVideoMemoryInfo(DXGI_QUERY_VIDEO_MEMORY_INFO& it) {
+    it = mVideoMemoryInfo;
   }
 
   uint64_t GetPredictedDisplayTime() const noexcept {
@@ -118,9 +131,12 @@ struct D3D11Frame {
   }
 
  private:
-  ID3D11DeviceContext* mContext {nullptr};
+  wil::com_ptr<ID3D11DeviceContext> mContext;
+  wil::com_ptr<IDXGIAdapter3> mAdapter;
   uint64_t mPredictedDisplayTime {};
   uint64_t mDisplayTime {};
+
+  DXGI_QUERY_VIDEO_MEMORY_INFO mVideoMemoryInfo {};
 
   wil::com_ptr<ID3D11Query> mDisjointQuery;
   wil::com_ptr<ID3D11Query> mBeginRenderTimestampQuery;
@@ -128,7 +144,6 @@ struct D3D11Frame {
 };
 
 ID3D11Device* gDevice {nullptr};
-wil::com_ptr<ID3D11DeviceContext> gContext;
 std::mutex gFramesMutex;
 std::vector<D3D11Frame> gFrames;
 uint64_t gBeginFrameCounter {0};
@@ -159,7 +174,7 @@ XrResult hooked_xrBeginFrame(
         dprint("Runaway D3D11 frame timer pool size");
         return ret;
       }
-      gFrames.emplace_back(gDevice, gContext.get());
+      gFrames.emplace_back(gDevice);
       dprint("Increased D3D11 timer pool size to {}", gFrames.size());
       it = gFrames.end() - 1;
     }
@@ -204,6 +219,7 @@ static APILayerAPI::LogFrameHookResult LoggingHook(Frame* frame) {
   const auto timer = it->GetRenderMicroseconds();
   if (timer.has_value()) {
     frame->mRenderGpu = timer.value();
+    it->GetVideoMemoryInfo(frame->mVideoMemoryInfo);
     return Result::Ready;
   }
   using enum D3D11Frame::GpuDataError;
@@ -240,7 +256,6 @@ XrResult hooked_xrCreateSession(
       = reinterpret_cast<const XrGraphicsBindingD3D11KHR*>(it);
     gFrames.clear();
     gDevice = graphicsBinding->device;
-    gDevice->GetImmediateContext(gContext.put());
 
     if (!gHooked.test_and_set()) {
       const auto coreMetrics = GetModuleHandleW(CoreMetricsDll);
@@ -291,8 +306,20 @@ XrResult hooked_xrWaitFrame(
   return ret;
 }
 
+PFN_xrDestroySession next_xrDestroySession {nullptr};
+XrResult hooked_xrDestroySession(XrSession session) {
+  dprint("In d3d11_metrics::xrDestroySession");
+  {
+    std::unique_lock lock {gFramesMutex};
+    gFrames.clear();
+    gDevice = nullptr;
+  }
+  return next_xrDestroySession(session);
+}
+
 #define HOOKED_OPENXR_FUNCS(X) \
   X(CreateSession) \
+  X(DestroySession) \
   X(WaitFrame) \
   X(BeginFrame) \
   X(EndFrame)

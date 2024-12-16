@@ -48,7 +48,8 @@ CSVWriter::Write(BinaryLogReader reader, HANDLE out, size_t framesPerRow) {
   win32::println(
     out,
     "\ufeffTime (µs),Count,Wait CPU (µs),App CPU (µs),Runtime CPU (µs),Render "
-    "CPU (µs),Render GPU (µs),Interval (µs),FPS");
+    "CPU (µs),Render GPU (µs),Interval (µs),FPS,VRAM Budget,VRAM Current "
+    "Usage,VRAM Current Reservation,VRAM Available for Reservation");
 
   auto& frameCount = ret.mFrameCount;
   auto& flushCount = ret.mRowCount;
@@ -73,7 +74,7 @@ CSVWriter::Write(BinaryLogReader reader, HANDLE out, size_t framesPerRow) {
 
     win32::println(
       out,
-      "{},{},{},{},{},{},{},{},{:0.1f}",
+      "{},{},{},{},{},{},{},{},{:0.1f},{},{},{},{}",
       pcm.ToDuration(*firstFrameTime, frame->mEndFrameStart).count(),
       row->mFrameCount,
       row->mWaitCpu.count(),
@@ -82,7 +83,11 @@ CSVWriter::Write(BinaryLogReader reader, HANDLE out, size_t framesPerRow) {
       row->mRenderCpu.count(),
       row->mRenderGpu.count(),
       row->mSincePreviousFrame.count(),
-      1000000.0f / row->mSincePreviousFrame.count());
+      1000000.0f / row->mSincePreviousFrame.count(),
+      row->mVideoMemoryInfo.Budget,
+      row->mVideoMemoryInfo.CurrentUsage,
+      row->mVideoMemoryInfo.CurrentReservation,
+      row->mVideoMemoryInfo.AvailableForReservation);
     ++flushCount;
   }
 

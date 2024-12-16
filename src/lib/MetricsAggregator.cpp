@@ -10,7 +10,11 @@
   OP(WaitCpu) \
   OP(RuntimeCpu) \
   OP(RenderCpu) \
-  OP(RenderGpu)
+  OP(RenderGpu) \
+  OP(VideoMemoryInfo.Budget) \
+  OP(VideoMemoryInfo.CurrentUsage) \
+  OP(VideoMemoryInfo.AvailableForReservation) \
+  OP(VideoMemoryInfo.CurrentReservation)
 
 MetricsAggregator::MetricsAggregator(const PerformanceCounterMath& pc)
   : mPerformanceCounterMath(pc) {

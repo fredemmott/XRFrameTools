@@ -34,7 +34,7 @@ MainWindow::MainWindow(HINSTANCE instance)
 
 MainWindow::~MainWindow() = default;
 
-MainWindow::LiveData::LiveData() : mAggregator(gPCM) {
+LiveData::LiveData() : mAggregator(gPCM) {
 }
 void MainWindow::UpdateLiveDataThreadEntry(const std::stop_token tok) {
   const auto interruptEvent
@@ -449,15 +449,6 @@ static auto RoundUp(auto value, auto multiplier) {
   return ((value + multiplier) / multiplier) * multiplier;
 }
 
-template <class T>
-struct MainWindow::LiveData::PlotPoint : ImPlotPoint {
-  PlotPoint(const int idx, const T value)
-    : ImPlotPoint(
-        static_cast<double>(idx) / MainWindow::LiveData::ChartFPS,
-        static_cast<double>(value)) {
-  }
-};
-
 void MainWindow::LiveDataSection() {
   std::unique_lock lock(mLiveDataMutex);
 
@@ -563,41 +554,6 @@ void MainWindow::LiveDataSection() {
       mLiveData.mChartFrames.data(),
       mLiveData.mChartFrames.size());
   }
-  constexpr auto plotAppCpu = [](int idx, void* user_data) -> ImPlotPoint {
-    const auto& frame = static_cast<LiveData::ChartFrames*>(user_data)->at(idx);
-    return LiveData::PlotPoint {
-      idx,
-      frame.mAppCpu.count(),
-    };
-  };
-  constexpr auto plotWaitCpu = [](int idx, void* user_data) -> ImPlotPoint {
-    const auto& frame = static_cast<LiveData::ChartFrames*>(user_data)->at(idx);
-    return LiveData::PlotPoint {
-      idx,
-      frame.mWaitCpu.count(),
-    };
-  };
-  constexpr auto plotRenderCpu = [](int idx, void* user_data) -> ImPlotPoint {
-    const auto& frame = static_cast<LiveData::ChartFrames*>(user_data)->at(idx);
-    return LiveData::PlotPoint {
-      idx,
-      frame.mRenderCpu.count(),
-    };
-  };
-  constexpr auto plotRenderGpu = [](int idx, void* user_data) -> ImPlotPoint {
-    const auto& frame = static_cast<LiveData::ChartFrames*>(user_data)->at(idx);
-    return LiveData::PlotPoint {
-      idx,
-      frame.mRenderGpu.count(),
-    };
-  };
-  constexpr auto plotRuntimeCpu = [](int idx, void* user_data) -> ImPlotPoint {
-    const auto& frame = static_cast<LiveData::ChartFrames*>(user_data)->at(idx);
-    return LiveData::PlotPoint {
-      idx,
-      frame.mRuntimeCpu.count(),
-    };
-  };
 
   if (const auto plot = ImGuiScoped::ImPlot("Frame Timings")) {
     ImPlot::SetupAxis(ImAxis_X1);
@@ -607,27 +563,28 @@ void MainWindow::LiveDataSection() {
     ImStackedAreaPlotter sap {mFrameTimingPlotKind};
     sap.Plot(
       "Runtime CPU",
-      plotRuntimeCpu,
+      &LiveData::PlotMicroseconds<&AggregatedFrameMetrics::mRuntimeCpu>,
       mLiveData.mChartFrames.data(),
       mLiveData.mChartFrames.size());
     sap.Plot(
       "App CPU",
-      plotAppCpu,
+      &LiveData::PlotMicroseconds<&AggregatedFrameMetrics::mAppCpu>,
       mLiveData.mChartFrames.data(),
       mLiveData.mChartFrames.size());
     sap.Plot(
       "Render CPU",
-      plotRenderCpu,
+      &LiveData::PlotMicroseconds<&AggregatedFrameMetrics::mRenderCpu>,
       mLiveData.mChartFrames.data(),
       mLiveData.mChartFrames.size());
     sap.Plot(
       "Wait CPU",
-      plotWaitCpu,
+      &LiveData::PlotMicroseconds<&AggregatedFrameMetrics::mWaitCpu>,
       mLiveData.mChartFrames.data(),
       mLiveData.mChartFrames.size());
+
     ImPlot::PlotLineG(
       "Render GPU",
-      plotRenderGpu,
+      &LiveData::PlotMicroseconds<&AggregatedFrameMetrics::mRenderGpu>,
       mLiveData.mChartFrames.data(),
       mLiveData.mChartFrames.size());
   }
@@ -640,6 +597,52 @@ void MainWindow::LiveDataSection() {
   ImGui::SameLine();
   if (ImGui::RadioButton("Lines", mFrameTimingPlotKind == PlotKind::Lines)) {
     mFrameTimingPlotKind = PlotKind::Lines;
+  }
+
+  if (const auto plot = ImGuiScoped::ImPlot("Video Memory")) {
+    const auto max = std::ranges::max_element(
+      mLiveData.mChartFrames, {}, [](const AggregatedFrameMetrics& frame) {
+        return std::max(
+          frame.mVideoMemoryInfo.AvailableForReservation,
+          frame.mVideoMemoryInfo.Budget);
+      });
+
+    ImPlot::SetupAxis(ImAxis_X1);
+    ImPlot::SetupAxis(ImAxis_Y1, "mb");
+    ImPlot::SetupAxisLimits(
+      ImAxis_Y1,
+      0.0,
+      RoundUp(
+        std::max(
+          max->mVideoMemoryInfo.AvailableForReservation,
+          max->mVideoMemoryInfo.Budget),
+        1024 * 1024 * 1024)
+        / (1024 * 1024),
+      ImPlotCond_Always);
+    ImPlot::SetAxes(ImAxis_X1, ImAxis_Y1);
+
+    ImPlot::PlotLineG(
+      "Current Usage",
+      &LiveData::PlotVideoMemory<&DXGI_QUERY_VIDEO_MEMORY_INFO::CurrentUsage>,
+      mLiveData.mChartFrames.data(),
+      mLiveData.mChartFrames.size());
+    ImPlot::PlotLineG(
+      "Budget",
+      &LiveData::PlotVideoMemory<&DXGI_QUERY_VIDEO_MEMORY_INFO::Budget>,
+      mLiveData.mChartFrames.data(),
+      mLiveData.mChartFrames.size());
+    ImPlot::PlotLineG(
+      "Current Reservation",
+      &LiveData::PlotVideoMemory<
+        &DXGI_QUERY_VIDEO_MEMORY_INFO::CurrentReservation>,
+      mLiveData.mChartFrames.data(),
+      mLiveData.mChartFrames.size());
+    ImPlot::PlotLineG(
+      "Available for Reservation",
+      &LiveData::PlotVideoMemory<
+        &DXGI_QUERY_VIDEO_MEMORY_INFO::AvailableForReservation>,
+      mLiveData.mChartFrames.data(),
+      mLiveData.mChartFrames.size());
   }
 }
 
