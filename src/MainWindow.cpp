@@ -584,6 +584,13 @@ void MainWindow::LiveDataSection() {
       frame.mRenderCpu.count(),
     };
   };
+  constexpr auto plotRenderGpu = [](int idx, void* user_data) -> ImPlotPoint {
+    const auto& frame = static_cast<LiveData::ChartFrames*>(user_data)->at(idx);
+    return LiveData::PlotPoint {
+      idx,
+      frame.mRenderGpu.count(),
+    };
+  };
   constexpr auto plotRuntimeCpu = [](int idx, void* user_data) -> ImPlotPoint {
     const auto& frame = static_cast<LiveData::ChartFrames*>(user_data)->at(idx);
     return LiveData::PlotPoint {
@@ -616,6 +623,11 @@ void MainWindow::LiveDataSection() {
     sap.Plot(
       "Wait CPU",
       plotWaitCpu,
+      mLiveData.mChartFrames.data(),
+      mLiveData.mChartFrames.size());
+    ImPlot::PlotLineG(
+      "Render GPU",
+      plotRenderGpu,
       mLiveData.mChartFrames.data(),
       mLiveData.mChartFrames.size());
   }

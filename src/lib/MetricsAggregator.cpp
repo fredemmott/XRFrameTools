@@ -9,7 +9,8 @@
 #define MEAN_METRICS(OP) \
   OP(WaitCpu) \
   OP(RuntimeCpu) \
-  OP(RenderCpu)
+  OP(RenderCpu) \
+  OP(RenderGpu)
 
 MetricsAggregator::MetricsAggregator(const PerformanceCounterMath& pc)
   : mPerformanceCounterMath(pc) {
@@ -94,8 +95,6 @@ std::optional<AggregatedFrameMetrics> MetricsAggregator::Flush() {
   DIVIDE_METRIC(SincePreviousFrame)
 #undef DIVIDE_METRIC
 #undef CLEAR_METRIC
-  const auto ret = std::move(mAccumulator);
-  mAccumulator = {};
   mHavePartialData = false;
-  return ret;
+  return std::exchange(mAccumulator, {});
 }
