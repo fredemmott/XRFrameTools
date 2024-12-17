@@ -117,8 +117,9 @@ NVIDIA describe their P-states as:
 
 P states higher than 12 should not be reachable while the PC as a whole is not in a sleep state.
 
-Being in a high P-state is not a bottleneck if it has been reached due to low GPU load; it is a problem if it has been
-reached due to power or thermal limits.
+Being in a high P-state is not necessarily a bottleneck if it has been reached due to low GPU load; it is a problem if
+it has been reached due to power or thermal limits. If your card is rapidly flicking between various P-states, you may
+want to change your NVIDIA/Windows performance profile to 'high performance', as this can introduce stutters.
 
 ## Warning about misleading numbers
 
