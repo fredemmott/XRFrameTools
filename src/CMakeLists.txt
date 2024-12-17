@@ -60,10 +60,7 @@ macro(add_xr_api_layer TARGET)
   add_xr_api_layer_json(${TARGET})
 endmacro()
 
-add_xr_api_layer(
-  core_metrics
-  XR_APILAYER_FREDEMMOTT_core_metrics.cpp
-)
+add_xr_api_layer(core_metrics XR_APILAYER_FREDEMMOTT_core_metrics.cpp)
 target_link_libraries(
   core_metrics
   PRIVATE
@@ -75,10 +72,9 @@ target_sources(
   PRIVATE
   FrameMetricsStore.cpp
 )
-add_xr_api_layer(
-  d3d11_metrics
-  XR_APILAYER_FREDEMMOTT_d3d11_metrics.cpp
-)
+add_xr_api_layer(d3d11_metrics XR_APILAYER_FREDEMMOTT_d3d11_metrics.cpp)
+add_xr_api_layer(nvapi_metrics XR_APILAYER_FREDEMMOTT_nvapi_metrics.cpp)
+target_link_libraries(nvapi_metrics PRIVATE nvapi)
 
 if(NOT BUILD_UI)
   return()

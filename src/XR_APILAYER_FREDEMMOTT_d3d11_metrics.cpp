@@ -21,7 +21,7 @@
 #include <numeric>
 #include <span>
 
-#include "APILayerAPI.hpp"
+#include "ApiLayerApi.hpp"
 #include "FrameMetricsStore.hpp"
 #include "Win32Utils.hpp"
 
@@ -199,8 +199,8 @@ XrResult hooked_xrEndFrame(
   return next_xrEndFrame(session, frameEndInfo);
 }
 
-static APILayerAPI::LogFrameHookResult LoggingHook(Frame* frame) {
-  using Result = APILayerAPI::LogFrameHookResult;
+static ApiLayerApi::LogFrameHookResult LoggingHook(Frame* frame) {
+  using Result = ApiLayerApi::LogFrameHookResult;
   if (!gIsEnabled) {
     return Result::Ready;
   }
@@ -220,6 +220,9 @@ static APILayerAPI::LogFrameHookResult LoggingHook(Frame* frame) {
   if (timer.has_value()) {
     frame->mRenderGpu = timer.value();
     it->GetVideoMemoryInfo(frame->mVideoMemoryInfo);
+
+    frame->mValidDataBits
+      |= std::to_underlying(FramePerformanceCounters::ValidDataBits::D3D11);
     return Result::Ready;
   }
   using enum D3D11Frame::GpuDataError;
@@ -256,31 +259,25 @@ XrResult hooked_xrCreateSession(
       = reinterpret_cast<const XrGraphicsBindingD3D11KHR*>(it);
     gFrames.clear();
     gDevice = graphicsBinding->device;
+    wil::com_ptr<IDXGIDevice> dxgiDevice;
+    gDevice->QueryInterface(dxgiDevice.put());
+    wil::com_ptr<IDXGIAdapter> dxgiAdapter;
+    dxgiDevice->GetAdapter(dxgiAdapter.put());
+    DXGI_ADAPTER_DESC adapterDesc {};
+    dxgiAdapter->GetDesc(&adapterDesc);
 
     if (!gHooked.test_and_set()) {
-      const auto coreMetrics = GetModuleHandleW(CoreMetricsDll);
-
-      if (!coreMetrics) {
-        dprint(
-          "d3d11_metrics: couldn't find core_metrics: {:#010x}",
-          static_cast<uint32_t>(HRESULT_FROM_WIN32(GetLastError())));
-        return ret;
-      }
-      auto getter = GetProcAddress(coreMetrics, "XRFrameTools_GetAPILayerAPI");
-      if (!getter) {
-        dprint("d3d11_metrics: couldn't find inter-layer API entrypoint");
-        return ret;
-      }
-      auto invocable
-        = reinterpret_cast<decltype(&XRFrameTools_GetAPILayerAPI)>(getter);
-      auto api = invocable(ABIKey, sizeof(ABIKey));
+      const auto api = ApiLayerApi::Get("d3d11_metrics");
       if (!api) {
-        dprint(
-          "d3d11_metrics: couldn't get an instance of the inter-layer API");
         return ret;
       }
       api->AppendLogFrameHook(&LoggingHook);
       dprint("d3d11_metrics: added logging hook");
+      api->SetActiveGpu(adapterDesc.AdapterLuid);
+      dprint(
+        L"d3d11_metrics: detected adapter LUID {:#018x} - {}",
+        std::bit_cast<uint64_t>(adapterDesc.AdapterLuid),
+        adapterDesc.Description);
       gIsEnabled = true;
     }
 

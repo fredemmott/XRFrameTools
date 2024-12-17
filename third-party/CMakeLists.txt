@@ -1,5 +1,6 @@
 block()
   include(openxr.cmake)
+  include(nvapi.cmake)
   if(BUILD_UI)
     include(vicius.cmake)
   endif()

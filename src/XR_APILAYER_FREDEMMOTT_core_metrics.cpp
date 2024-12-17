@@ -20,27 +20,26 @@
 #define APILAYER_API __declspec(dllexport)
 #include <deque>
 
-#include "APILayerAPI.hpp"
+#include "ApiLayerApi.hpp"
 
 static auto gConfig = Config::GetForOpenXRAPILayer();
 
 static SHMWriter gSHM;
 static std::optional<BinaryLogWriter> gBinaryLogger;
 static FrameMetricsStore gFrameMetrics;
-static std::vector<APILayerAPI::LogFrameHook> gLoggingHooks;
+static std::vector<ApiLayerApi::LogFrameHook> gLoggingHooks;
 
 static std::deque<Frame> gLogQueue;
 static std::mutex gLogQueueMutex;
 
-void AppendLogFrameHook(APILayerAPI::LogFrameHook hook) {
-  gLoggingHooks.push_back(hook);
-}
+static class APILayerAPIImpl final : public ApiLayerApi {
+ public:
+  void AppendLogFrameHook(LogFrameHook logFrameHook) override {
+    gLoggingHooks.push_back(logFrameHook);
+  }
+} gApiLayerApi {};
 
-static APILayerAPI gAPILayerAPI {
-  .AppendLogFrameHook = &AppendLogFrameHook,
-};
-
-APILayerAPI* XRFrameTools_GetAPILayerAPI(
+ApiLayerApi* XRFrameTools_GetApiLayerApi(
   const char* abiKey,
   std::size_t abiKeyLength) {
   if (abiKeyLength != sizeof(ABIKey)) {
@@ -50,7 +49,7 @@ APILayerAPI* XRFrameTools_GetAPILayerAPI(
     return nullptr;
   }
 
-  return &gAPILayerAPI;
+  return &gApiLayerApi;
 }
 
 enum class LogFrameResult {
@@ -61,7 +60,7 @@ enum class LogFrameResult {
 [[nodiscard]]
 static LogFrameResult LogFrame(Frame& frame) {
   for (auto&& hook: gLoggingHooks) {
-    if (hook(&frame) == APILayerAPI::LogFrameHookResult::Pending) {
+    if (hook(&frame) == ApiLayerApi::LogFrameHookResult::Pending) {
       return LogFrameResult::Pending;
     }
   }
