@@ -9,6 +9,7 @@ jobs:
       - name: List artifacts
         run: Get-ChildItem -recurse
       - name: Make bundles
+        id: bundle
         shell: pwsh
         run: |
           mkdir bundle
@@ -18,15 +19,17 @@ jobs:
           
           Move-Item build64-debug-symbols debug-bundle
           Move-Item build32-debug-symbols/* debug-bundle/
+          
+          Add-Content $env:GITHUB_OUTPUT "version=$(Get-Content bundle/INSTALL_ROOT/installer/version.txt)"
       - name: Upload bundle
         uses: actions/upload-artifact@v4
         with:
-          name: bundle-GHA${{github.run_number}}
+          name: bundle-v${{steps.bundle.outputs.version}}
           path: bundle
       - name: Upload debug bundle
         uses: actions/upload-artifact@v4
         with:
-          name: XRFrameTools-DebugSymbols-GHA${{github.run_number}}
+          name: XRFrameTools-v${{steps.bundle.outputs.version}}-DebugSymbols
           path: debug-bundle
       - name: install WiX
         run: dotnet tool install --global wix
@@ -38,9 +41,12 @@ jobs:
           ./XRFrameTools-Installer.exe `
             "$(Get-Location)/INSTALL_ROOT" `
             --stamp-file ${{github.workspace}}/installer.stamp
-          Add-Content $env:GITHUB_OUTPUT "installer-path=$(Get-Content ${{github.workspace}}/installer.stamp)"
+          $InstallerPath = Get-Content ${{github.workspace}}/installer.stamp
+          $InstallerName = (Get-Item $InstallerPath).Name
+          Add-Content $env:GITHUB_OUTPUT "installer-path=${InstallerPath}"
+          Add-Content $env:GITHUB_OUTPUT "installer-name=${InstallerName}"
       - name: Upload unsigned installer
         uses: actions/upload-artifact@v4
         with:
-          name: XRFrameTools-GHA${{github.run_number}}
+          name: ${{steps.build-installer.outputs.installer-name}}
           path: ${{steps.build-installer.outputs.installer-path}}
