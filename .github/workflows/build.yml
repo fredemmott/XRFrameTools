@@ -43,6 +43,10 @@ jobs:
           if ("${{inputs.cmake-architecture}}" -ne "") {
             $extraArgs += @('-A', '${{inputs.cmake-architecture}}')
           }
+          if ("${{github.ref_type}}" -eq "tag") {
+            $extraArgs += '-DIS_TAGGED_BUILD=ON'
+          }
+
           cmake .. `
             "-DCMAKE_BUILD_TYPE=${{matrix.build-type}}" `
             -DVCPKG_TARGET_TRIPLET=${{inputs.vcpkg-architecture}}-windows${{matrix.build-type == 'RelWithDebInfo' && '-static' || ''}} `
