@@ -150,6 +150,8 @@ Other tools are primarily based on measuring how frequently the game sends data 
 correctly for OpenXR games:
 
 - at best, it will measure the FPS of your games' mirror window rather than the headset FPS
+    - even when this is doesn't affect VR, the measured CPU time will include 'Wait CPU' time, when it should be
+      excluded; 'Wait CPU' can *only* be accurately measured by tools built for OpenXR.
 - at worst, it will cap your headset to your monitor refresh rate, and the game will use your monitors frame timing for
   VR as well
 
