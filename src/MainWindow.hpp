@@ -97,6 +97,10 @@ class MainWindow final : public Window {
   void LoggingControls();
   void LogConversionControls();
   void LoggingSection();
+  void PlotNVAPI();
+  void PlotFramerate(double maxMicroseconds);
+  void PlotFrameTimings(double maxMicroseconds);
+  void PlotVideoMemory();
   void LiveDataSection();
   void AboutSection();
 
