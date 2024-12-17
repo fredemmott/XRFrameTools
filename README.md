@@ -117,6 +117,9 @@ NVIDIA describe their P-states as:
 
 P states higher than 12 should not be reachable while the PC as a whole is not in a sleep state.
 
+Being in a high P-state is not a bottleneck if it has been reached due to low GPU load; it is a problem if it has been
+reached due to power or thermal limits.
+
 ## Warning about misleading numbers
 
 Your CPU and GPU can be throttled for various reasons, including:
