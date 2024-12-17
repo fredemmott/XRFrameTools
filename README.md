@@ -104,6 +104,19 @@ Indicates the GPU's power state, and any reasons for it entering the power state
     - when "GPU API" is "NVAPI", this value is a bitmask of [
       `NVAPI_GPU_PERF_DECREASE` values](https://github.com/NVIDIA/nvapi/blob/67af97007f59c248c01e520d8c8fb70e243a3240/nvapi.h#L4723)
 
+P-State 0 has no power saving, while P-State 15 has the most power saving; that is, P-State 0 is best performance,
+P-State 15 is worst performance.
+
+NVIDIA describe their P-states as:
+
+- P0/P1: maximum 3D performance
+- P2/P3: balanced
+- P8: basic HD video playback
+- P10: DVD playback
+- P12: minimum idle power consumption
+
+P states higher than 12 should not be reachable while the PC as a whole is not in a sleep state.
+
 ## Warning about misleading numbers
 
 Your CPU and GPU can be throttled for various reasons, including:
