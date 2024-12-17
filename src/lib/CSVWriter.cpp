@@ -112,7 +112,7 @@ CSVWriter::Write(BinaryLogReader reader, HANDLE out, size_t framesPerRow) {
         NV_GPU_PERF_DECREASE_REASON_POWER_CONTROL
         | NV_GPU_PERF_DECREASE_REASON_AC_BATT
         | NV_GPU_PERF_DECREASE_REASON_INSUFFICIENT_POWER),
-      gpuPowerLimitFlags(NV_GPU_PERF_DECREASE_REASON_INSUFFICIENT_POWER));
+      gpuPowerLimitFlags(NV_GPU_PERF_DECREASE_REASON_API_TRIGGERED));
     ++flushCount;
   }
 
