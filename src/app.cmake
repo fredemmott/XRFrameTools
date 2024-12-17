@@ -38,6 +38,8 @@ target_link_libraries(
   # System libraries
   D3D11
   DXGI
+  # Third-party
+  nvapi
 )
 target_include_directories(app PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/include")
 include(add_version_resource)

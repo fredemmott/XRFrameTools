@@ -4,6 +4,7 @@
 #include "MainWindow.hpp"
 
 #include <implot.h>
+#include <nvapi.h>
 #include <shellapi.h>
 #include <shlobj_core.h>
 #include <wil/com.h>
@@ -192,7 +193,6 @@ void MainWindow::LogConversionControls() {
     });
   ImGui::LabelText("Application path", "%s", executable.c_str());
 
-  int aggregateFrames = 10;
   if (ImGui::InputInt("Frames per CSV row (averaged)", &mCSVFramesPerRow)) {
     if (mCSVFramesPerRow < 1) {
       mCSVFramesPerRow = 1;
@@ -643,6 +643,73 @@ void MainWindow::LiveDataSection() {
       "Available for Reservation",
       &LiveData::PlotVideoMemory<
         &DXGI_QUERY_VIDEO_MEMORY_INFO::AvailableForReservation>,
+      mLiveData.mChartFrames.data(),
+      mLiveData.mChartFrames.size());
+  }
+
+  const auto haveNVAPI = std::ranges::any_of(
+    mLiveData.mChartFrames, [](const auto& frame) -> bool {
+      return frame.mValidDataBits
+        & std::to_underlying(FramePerformanceCounters::ValidDataBits::NVAPI);
+    });
+  if (!haveNVAPI) {
+    return;
+  }
+  if (const auto plot = ImGuiScoped::ImPlot("GPU Throttling")) {
+    ImPlot::SetupAxis(ImAxis_X1);
+    ImPlot::SetupAxis(ImAxis_Y1);
+    // 15 is the highest documented value; add a bit more so the line isn't at
+    // the top if we ever get there
+    ImPlot::SetupAxisLimits(ImAxis_Y1, 0, 16);
+    ImPlot::SetAxes(ImAxis_X1, ImAxis_Y1);
+
+    ImPlot::PlotDigitalG(
+      "Any Limit",
+      &LiveData::PlotFrame<[](const AggregatedFrameMetrics& frame) {
+        return frame.mGpuPerformanceInfo.mDecreaseReason != 0;
+      }>,
+      mLiveData.mChartFrames.data(),
+      mLiveData.mChartFrames.size());
+    ImPlot::PlotDigitalG(
+      "Thermal Limit",
+      &LiveData::PlotFrame<[](const AggregatedFrameMetrics& frame) {
+        return (frame.mGpuPerformanceInfo.mDecreaseReason
+                & NV_GPU_PERF_DECREASE_REASON_THERMAL_PROTECTION)
+          != 0;
+      }>,
+      mLiveData.mChartFrames.data(),
+      mLiveData.mChartFrames.size());
+    ImPlot::PlotDigitalG(
+      "Power Limit",
+      &LiveData::PlotFrame<[](const AggregatedFrameMetrics& frame) {
+        return (frame.mGpuPerformanceInfo.mDecreaseReason
+                & (NV_GPU_PERF_DECREASE_REASON_POWER_CONTROL | NV_GPU_PERF_DECREASE_REASON_AC_BATT | NV_GPU_PERF_DECREASE_REASON_INSUFFICIENT_POWER))
+          != 0;
+      }>,
+      mLiveData.mChartFrames.data(),
+      mLiveData.mChartFrames.size());
+    ImPlot::PlotDigitalG(
+      "API Limit",
+      &LiveData::PlotFrame<[](const AggregatedFrameMetrics& frame) {
+        return (frame.mGpuPerformanceInfo.mDecreaseReason
+                & NV_GPU_PERF_DECREASE_REASON_API_TRIGGERED)
+          != 0;
+      }>,
+      mLiveData.mChartFrames.data(),
+      mLiveData.mChartFrames.size());
+
+    ImPlot::PlotLineG(
+      "Lowest P-State",
+      &LiveData::PlotFrame<[](const AggregatedFrameMetrics& frame) {
+        return frame.mGpuLowestPState;
+      }>,
+      mLiveData.mChartFrames.data(),
+      mLiveData.mChartFrames.size());
+    ImPlot::PlotLineG(
+      "Highest P-State",
+      &LiveData::PlotFrame<[](const AggregatedFrameMetrics& frame) {
+        return frame.mGpuHighestPState;
+      }>,
       mLiveData.mChartFrames.data(),
       mLiveData.mChartFrames.size());
   }
