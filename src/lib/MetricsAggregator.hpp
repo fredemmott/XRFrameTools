@@ -11,6 +11,9 @@ struct AggregatedFrameMetrics : FrameMetrics {
   uint16_t mFrameCount {};
   std::chrono::microseconds mAppCpu {};
   std::chrono::microseconds mSincePreviousFrame {};
+
+  uint32_t mGpuLowestPState {};
+  uint32_t mGpuHighestPState {};
 };
 
 class MetricsAggregator final {

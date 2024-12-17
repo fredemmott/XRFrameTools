@@ -6,8 +6,9 @@
 
 #include <chrono>
 
+#include "FramePerformanceCounters.hpp"
+
 struct PerformanceCounterMath;
-struct FramePerformanceCounters;
 
 struct FrameMetrics {
   FrameMetrics() = default;
@@ -19,5 +20,7 @@ struct FrameMetrics {
   std::chrono::microseconds mRenderGpu {};
   std::chrono::microseconds mRuntimeCpu {};
 
+  uint64_t mValidDataBits {};
   DXGI_QUERY_VIDEO_MEMORY_INFO mVideoMemoryInfo {};
+  FramePerformanceCounters::GpuPerformanceInfo mGpuPerformanceInfo {};
 };

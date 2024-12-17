@@ -4,6 +4,7 @@
 #include "CSVWriter.hpp"
 
 #include <Windows.h>
+#include <nvapi.h>
 #include <wil/filesystem.h>
 
 #include "MetricsAggregator.hpp"
@@ -49,7 +50,9 @@ CSVWriter::Write(BinaryLogReader reader, HANDLE out, size_t framesPerRow) {
     out,
     "\ufeffTime (µs),Count,Wait CPU (µs),App CPU (µs),Runtime CPU (µs),Render "
     "CPU (µs),Render GPU (µs),Interval (µs),FPS,VRAM Budget,VRAM Current "
-    "Usage,VRAM Current Reservation,VRAM Available for Reservation");
+    "Usage,VRAM Current Reservation,VRAM Available for Reservation,GPU "
+    "P-State Min,GPU P-State Max,GPU API,GPU Limit Bits,GPU Thermal "
+    "Limit,GPU Power Limit,GPU API Limit");
 
   auto& frameCount = ret.mFrameCount;
   auto& flushCount = ret.mRowCount;
@@ -72,9 +75,21 @@ CSVWriter::Write(BinaryLogReader reader, HANDLE out, size_t framesPerRow) {
       continue;
     };
 
+    const bool haveNVAPI = row->mValidDataBits
+      & std::to_underlying(FramePerformanceCounters::ValidDataBits::NVAPI);
+    const auto gpuDataSource = haveNVAPI ? "NVAPI" : "";
+
+    const auto gpuPowerLimitFlags = [haveNVAPI, row](auto flags) {
+      if (!haveNVAPI) {
+        return "";
+      }
+      return ((row->mGpuPerformanceInfo.mDecreaseReason & flags) != 0) ? "1"
+                                                                       : "0";
+    };
+
     win32::println(
       out,
-      "{},{},{},{},{},{},{},{},{:0.1f},{},{},{},{}",
+      "{},{},{},{},{},{},{},{},{:0.1f},{},{},{},{},{},{},{},{},{},{},{}",
       pcm.ToDuration(*firstFrameTime, frame->mEndFrameStart).count(),
       row->mFrameCount,
       row->mWaitCpu.count(),
@@ -87,7 +102,17 @@ CSVWriter::Write(BinaryLogReader reader, HANDLE out, size_t framesPerRow) {
       row->mVideoMemoryInfo.Budget,
       row->mVideoMemoryInfo.CurrentUsage,
       row->mVideoMemoryInfo.CurrentReservation,
-      row->mVideoMemoryInfo.AvailableForReservation);
+      row->mVideoMemoryInfo.AvailableForReservation,
+      row->mGpuLowestPState,
+      row->mGpuHighestPState,
+      gpuDataSource,
+      row->mGpuPerformanceInfo.mDecreaseReason,
+      gpuPowerLimitFlags(NV_GPU_PERF_DECREASE_REASON_THERMAL_PROTECTION),
+      gpuPowerLimitFlags(
+        NV_GPU_PERF_DECREASE_REASON_POWER_CONTROL
+        | NV_GPU_PERF_DECREASE_REASON_AC_BATT
+        | NV_GPU_PERF_DECREASE_REASON_INSUFFICIENT_POWER),
+      gpuPowerLimitFlags(NV_GPU_PERF_DECREASE_REASON_INSUFFICIENT_POWER));
     ++flushCount;
   }
 

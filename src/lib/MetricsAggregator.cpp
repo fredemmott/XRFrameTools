@@ -34,7 +34,22 @@ static void AddIfOrdered(
 }
 
 void MetricsAggregator::Push(const FramePerformanceCounters& fpc) {
-  ++mAccumulator.mFrameCount;
+  if (++mAccumulator.mFrameCount == 1) {
+    mAccumulator.mValidDataBits = fpc.mValidDataBits;
+
+    mAccumulator.mGpuPerformanceInfo = fpc.mGpuPerformanceInformation;
+    mAccumulator.mGpuLowestPState = fpc.mGpuPerformanceInformation.mPState;
+    mAccumulator.mGpuHighestPState = fpc.mGpuPerformanceInformation.mPState;
+  } else {
+    mAccumulator.mValidDataBits &= fpc.mValidDataBits;
+
+    mAccumulator.mGpuPerformanceInfo.mDecreaseReason
+      |= fpc.mGpuPerformanceInformation.mDecreaseReason;
+    mAccumulator.mGpuLowestPState = std::min(
+      mAccumulator.mGpuLowestPState, fpc.mGpuPerformanceInformation.mPState);
+    mAccumulator.mGpuHighestPState = std::max(
+      mAccumulator.mGpuHighestPState, fpc.mGpuPerformanceInformation.mPState);
+  }
 
   const auto pcm = mPerformanceCounterMath;
   std::chrono::microseconds appCpu {};

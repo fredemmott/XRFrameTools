@@ -13,6 +13,7 @@ target_link_libraries(
   PUBLIC
   BinaryLogReader
   PRIVATE
+  nvapi
   FrameMetrics
   Win32Utils
 )
