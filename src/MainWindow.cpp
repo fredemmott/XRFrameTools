@@ -651,18 +651,35 @@ void MainWindow::PlotVideoMemory() {
         frame.mVideoMemoryInfo.Budget);
     });
 
+  const auto vramAxisLimit = RoundUp(
+                               std::max(
+                                 max->mVideoMemoryInfo.AvailableForReservation,
+                                 max->mVideoMemoryInfo.Budget),
+                               5ui64 * 1024 * 1024 * 1024)
+
+    / (1024 * 1024);
+  std::vector<std::string> labels;
+  uint64_t tickSize = 1024;
+  while (vramAxisLimit / tickSize > 8) {
+    tickSize *= 2;
+  }
+  for (uint64_t i = 0; i < vramAxisLimit; i += tickSize) {
+    labels.push_back(std::format("{}", i));
+  }
+  std::vector<const char*> labelCStrings;
+  for (auto&& label: labels) {
+    labelCStrings.push_back(label.c_str());
+  }
+
   ImPlot::SetupAxis(ImAxis_X1);
   ImPlot::SetupAxis(ImAxis_Y1, "mb");
-  ImPlot::SetupAxisLimits(
+  ImPlot::SetupAxisLimits(ImAxis_Y1, 0.0, vramAxisLimit, ImPlotCond_Always);
+  ImPlot::SetupAxisTicks(
     ImAxis_Y1,
     0.0,
-    RoundUp(
-      std::max(
-        max->mVideoMemoryInfo.AvailableForReservation,
-        max->mVideoMemoryInfo.Budget),
-      5i64 * 1024 * 1024 * 1024)
-      / (1024 * 1024),
-    ImPlotCond_Always);
+    labels.size() * tickSize,
+    labels.size(),
+    labelCStrings.data());
   ImPlot::SetAxes(ImAxis_X1, ImAxis_Y1);
 
   ImPlot::PlotLineG(
