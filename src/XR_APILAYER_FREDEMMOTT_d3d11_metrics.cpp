@@ -22,6 +22,8 @@
 #include <span>
 
 #include "ApiLayerApi.hpp"
+#include "CheckHResult.hpp"
+#include "D3D11GpuTimer.hpp"
 #include "FrameMetricsStore.hpp"
 #include "Win32Utils.hpp"
 
@@ -29,38 +31,22 @@ namespace {
 
 struct D3D11Frame {
   D3D11Frame() = delete;
-  explicit D3D11Frame(ID3D11Device* device) {
-    device->GetImmediateContext(mContext.put());
+  explicit D3D11Frame(ID3D11Device* device) : mGpuTimer(device) {
     wil::com_ptr<IDXGIDevice> dxgiDevice;
-    device->QueryInterface(dxgiDevice.put());
+    CheckHResult(device->QueryInterface(dxgiDevice.put()));
     wil::com_ptr<IDXGIAdapter> dxgiAdapter;
-    dxgiDevice->GetAdapter(dxgiAdapter.put());
-    dxgiAdapter->QueryInterface(mAdapter.put());
-
-    D3D11_QUERY_DESC desc {D3D11_QUERY_TIMESTAMP_DISJOINT};
-    device->CreateQuery(&desc, mDisjointQuery.put());
-    desc = {D3D11_QUERY_TIMESTAMP};
-    device->CreateQuery(&desc, mBeginRenderTimestampQuery.put());
-    device->CreateQuery(&desc, mEndRenderTimestampQuery.put());
+    CheckHResult(dxgiDevice->GetAdapter(dxgiAdapter.put()));
+    CheckHResult(dxgiAdapter->QueryInterface(mAdapter.put()));
   }
 
   void StartRender(uint64_t predictedDisplayTime) {
-    if (!(mContext && mDisjointQuery && mBeginRenderTimestampQuery)) {
-      return;
-    }
     mPredictedDisplayTime = predictedDisplayTime;
     mDisplayTime = {};
     mVideoMemoryInfo = {};
-    mContext->Begin(mDisjointQuery.get());
-    // TIMESTAMP queries only have `End()` and `GetData()` called, never
-    // `Begin()`
-    mContext->End(mBeginRenderTimestampQuery.get());
+    mGpuTimer.Start();
   }
 
   void StopRender(uint64_t displayTime) {
-    if (!(mContext && mDisjointQuery && mBeginRenderTimestampQuery)) {
-      return;
-    }
     mDisplayTime = displayTime;
 #ifndef NDEBUG
     if (mDisplayTime != mPredictedDisplayTime) {
@@ -68,9 +54,8 @@ struct D3D11Frame {
       __debugbreak();
     }
 #endif
+    mGpuTimer.Stop();
 
-    mContext->End(mEndRenderTimestampQuery.get());
-    mContext->End(mDisjointQuery.get());
     mAdapter->QueryVideoMemoryInfo(
       0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &mVideoMemoryInfo);
   }
@@ -87,60 +72,26 @@ struct D3D11Frame {
     return mDisplayTime;
   }
 
-  enum class GpuDataError {
-    Pending,
-    Unusable,// e.g. Disjoint
-    MissingResources,
-  };
-
   std::expected<uint64_t, GpuDataError> GetRenderMicroseconds() {
-    if (!(mContext && mDisjointQuery && mBeginRenderTimestampQuery)) {
-      mPredictedDisplayTime = {};
-      mDisplayTime = {};
-      return std::unexpected {GpuDataError::MissingResources};
-    }
-    D3D11_QUERY_DATA_TIMESTAMP_DISJOINT disjoint {};
-    uint64_t begin {};
-    uint64_t end {};
-    const auto djResult = mContext->GetData(
-      mDisjointQuery.get(),
-      &disjoint,
-      sizeof(disjoint),
-      D3D11_ASYNC_GETDATA_DONOTFLUSH);
-    if (djResult == S_FALSE) {
-      return std::unexpected {GpuDataError::Pending};
+    const auto ret = mGpuTimer.GetMicroseconds();
+
+    if (ret == std::unexpected {GpuDataError::Pending}) {
+      return ret;
     }
 
     mPredictedDisplayTime = {};
     mDisplayTime = {};
-    if (djResult != S_OK) {
-      return std::unexpected {GpuDataError::Unusable};
-    }
-    mContext->GetData(
-      mBeginRenderTimestampQuery.get(), &begin, sizeof(begin), 0);
-    mContext->GetData(mEndRenderTimestampQuery.get(), &end, sizeof(end), 0);
-    if (disjoint.Disjoint || !(disjoint.Frequency && begin && end)) {
-      return std::unexpected {GpuDataError::Unusable};
-    }
 
-    const auto diff = end - begin;
-    const auto gcd = std::gcd(1000000, disjoint.Frequency);
-    const auto micros = (diff * (1000000 / gcd)) / (disjoint.Frequency / gcd);
-
-    return micros;
+    return ret;
   }
 
  private:
-  wil::com_ptr<ID3D11DeviceContext> mContext;
   wil::com_ptr<IDXGIAdapter3> mAdapter;
   uint64_t mPredictedDisplayTime {};
   uint64_t mDisplayTime {};
 
   DXGI_QUERY_VIDEO_MEMORY_INFO mVideoMemoryInfo {};
-
-  wil::com_ptr<ID3D11Query> mDisjointQuery;
-  wil::com_ptr<ID3D11Query> mBeginRenderTimestampQuery;
-  wil::com_ptr<ID3D11Query> mEndRenderTimestampQuery;
+  D3D11GpuTimer mGpuTimer;
 };
 
 ID3D11Device* gDevice {nullptr};
@@ -225,12 +176,10 @@ static ApiLayerApi::LogFrameHookResult LoggingHook(Frame* frame) {
       |= std::to_underlying(FramePerformanceCounters::ValidDataBits::D3D11);
     return Result::Ready;
   }
-  using enum D3D11Frame::GpuDataError;
   switch (timer.error()) {
-    case Pending:
+    case GpuDataError::Pending:
       return Result::Pending;
-    case Unusable:
-    case MissingResources:
+    case GpuDataError::Unusable:
       return Result::Ready;
   }
   return Result::Ready;

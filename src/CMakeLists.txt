@@ -73,6 +73,8 @@ target_sources(
   FrameMetricsStore.cpp
 )
 add_xr_api_layer(d3d11_metrics XR_APILAYER_FREDEMMOTT_d3d11_metrics.cpp)
+target_link_libraries(d3d11_metrics PRIVATE D3D11GpuTimer)
+
 add_xr_api_layer(nvapi_metrics XR_APILAYER_FREDEMMOTT_nvapi_metrics.cpp)
 target_link_libraries(nvapi_metrics PRIVATE nvapi)
 
