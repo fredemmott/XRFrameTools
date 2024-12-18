@@ -34,6 +34,13 @@ static void AddIfOrdered(
 }
 
 void MetricsAggregator::Push(const FramePerformanceCounters& fpc) {
+  if (fpc.mEndFrameStart.QuadPart && !mPreviousFrameEndTime.QuadPart) {
+    // While the frame is overall valid, without an interval (and FPS)
+    // we can't draw useful conclusions from it
+    mPreviousFrameEndTime = fpc.mEndFrameStart;
+    return;
+  }
+
   if (++mAccumulator.mFrameCount == 1) {
     mAccumulator.mValidDataBits = fpc.mValidDataBits;
 
