@@ -24,9 +24,18 @@
 
 static const auto gPCM = PerformanceCounterMath::CreateForLiveData();
 
+static constexpr auto RoundUp(auto value, auto multiplier) {
+  const auto floor = (static_cast<int64_t>(value) / multiplier) * multiplier;
+  if ((value - floor) < 1e-3 * value) {
+    return floor;
+  }
+  return floor + multiplier;
+}
+
 static void SetupMicrosecondsAxis(ImAxis axis, auto max) {
   ImPlot::SetupAxis(axis, "µs");
-  ImPlot::SetupAxisLimits(axis, 0.0, max, ImPlotCond_Always);
+  ImPlot::SetupAxisLimits(
+    axis, 0.0, RoundUp(max, 1000) + 1000, ImPlotCond_Always);
 }
 
 MainWindow::MainWindow(HINSTANCE instance)
@@ -450,10 +459,6 @@ void MainWindow::ConvertBinaryLogFiles() {
     folderPidl.get(), childRawPtrs.size(), childRawPtrs.data(), 0);
 }
 
-static auto RoundUp(auto value, auto multiplier) {
-  return ((value + multiplier) / multiplier) * multiplier;
-}
-
 void MainWindow::PlotNVAPI() {
   const auto haveNVAPI = std::ranges::any_of(
     mLiveData.mChartFrames, [](const auto& frame) -> bool {
@@ -535,14 +540,23 @@ void MainWindow::PlotFramerate(const double maxMicroseconds) {
   ImPlot::SetupAxis(ImAxis_X1);
 
   ImPlot::SetupAxis(ImAxis_Y1, "hz");
-  const auto fastestFrameMicroseconds
-    = std::ranges::min_element(mLiveData.mChartFrames, {}, [](const auto& it) {
-        return it.mSincePreviousFrame.count();
-      })->mSincePreviousFrame.count();
-  const auto maxFPS = (fastestFrameMicroseconds == 0)
-    ? 72.0
-    : (1000000.0 / fastestFrameMicroseconds);
-  ImPlot::SetupAxisLimits(ImAxis_Y1, 0, RoundUp(maxFPS, 5), ImPlotCond_Always);
+
+  std::optional<double> minInterval;
+  for (auto&& frame: mLiveData.mChartFrames) {
+    const auto interval = frame.mSincePreviousFrame.count();
+    if (!interval) {
+      continue;
+    }
+    if (
+      interval
+      < minInterval.value_or(std::numeric_limits<double>::infinity())) {
+      minInterval = interval;
+    }
+  }
+
+  const auto maxFPS
+    = minInterval.has_value() ? (1e6 / minInterval.value()) : 72.0;
+  ImPlot::SetupAxisLimits(ImAxis_Y1, 0, maxFPS, ImPlotCond_Always);
   SetupMicrosecondsAxis(ImAxis_Y2, maxMicroseconds);
 
   ImPlot::SetAxes(ImAxis_X1, ImAxis_Y1);
