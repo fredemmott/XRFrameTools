@@ -64,7 +64,9 @@ microseconds per second.
 - Frame interval: time between each frame, in microseconds (*µs*). The FPS is 1,000,000 divided by the average frame
   interval
 - Wait CPU: the amount of time the CPU spends waiting for the best time to start the next frame, to line up with the
-  next display refresh
+  next display refresh. This is roughly equivalent to 'waiting for VSync'; if you decrease the game's CPU usage, you
+  should expect this number to *increase*, in order to intentionally delay the next frame to line up with the panel
+  refresh
 - Render CPU: the amount of time the CPU spends producing work for the GPU
 - Runtime CPU: the amount of time the CPU spends in the OpenXR runtime, excluding Wait CPU
 - App CPU: the amount of time spent waiting for the game, excluding Render CPU
