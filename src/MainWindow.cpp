@@ -26,9 +26,13 @@ static const auto gPCM = PerformanceCounterMath::CreateForLiveData();
 
 static constexpr auto RoundUp(auto value, auto multiplier) {
   const auto floor = (static_cast<int64_t>(value) / multiplier) * multiplier;
-  if ((value - floor) < 1e-3 * value) {
+  if (
+    (value - floor) < value * std::numeric_limits<decltype(value)>::epsilon()) {
     return floor;
   }
+  // int wrapparound shenanigans. If you hit this, you probably want an explicit
+  // 64-bit conversion in your inputs
+  assert(floor + multiplier >= value);
   return floor + multiplier;
 }
 
@@ -656,7 +660,7 @@ void MainWindow::PlotVideoMemory() {
       std::max(
         max->mVideoMemoryInfo.AvailableForReservation,
         max->mVideoMemoryInfo.Budget),
-      1024 * 1024 * 1024)
+      5i64 * 1024 * 1024 * 1024)
       / (1024 * 1024),
     ImPlotCond_Always);
   ImPlot::SetAxes(ImAxis_X1, ImAxis_Y1);
