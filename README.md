@@ -42,7 +42,7 @@ favorite other program.
 1. Switch to the 'Performance logging' tab
 2. Enable the logging; if you don't select a time period, logging will be enabled for all OpenXR apps until you turn it
    off, even if the XRFrameTools program isn't running
-3. Once the game has cloesd or you've disabled logging, click 'Convert log files to CSV...'
+3. Once the game has closed or you've disabled logging, click 'Convert log files to CSV...'
 
 As of v0.0.2, logging uses 104 bytes per frame of your hard drive or SSD; this is:
 
@@ -72,7 +72,7 @@ microseconds per second.
 - App CPU: the amount of time spent waiting for the game, excluding Render CPU
 - Render GPU: the amount of time the GPU spent working on the work the CPU submitting during "Render CPU"
 
-In multi-threaded apps, the 'App CPU' may not include all the CPU time spent on each frame; it only includes the amount
+In multithreaded apps, the 'App CPU' may not include all the CPU time spent on each frame; it only includes the amount
 of time that submitting frames to the headset is blocked by the app.
 
 ### Video memory
@@ -86,7 +86,7 @@ of time that submitting frames to the headset is blocked by the app.
 
 ### GPU Throttling (NVIDIA-only)
 
-Indicates the GPU's power state, and any reasons for it entering the power state.
+Indicates the GPUs power state, and any reasons for it entering the power state.
 
 - Any Limit: the GPU is being throttled for any reason
 - Lowest P-State: the lowest power-save state the GPU has entered
@@ -96,8 +96,8 @@ Indicates the GPU's power state, and any reasons for it entering the power state
     - the GPU is limited by the current performance plan
     - the GPU is limited because the computer is running from battery power
     - the GPU is drawing an unsafe amount of power
-    - one or more of the GPU's power connectors are not connected to the PSU
-- API limit: the GPU's performance has been limited by the game, or via the NVIDIA Control Panel or third-party tool
+    - one or more of the GPUs power connectors are not connected to the PSU
+- API limit: the GPUs performance has been limited by the game, or via the NVIDIA Control Panel or third-party tool
 - GPU API (CSV only): the API used to retrieve GPU information. This is `"NVAPI"` for NVIDIA cards, or empty if data is
   not available
 - GPU limit bits (CSV only): the raw reasons for throttling, as provided by `NVAPI`
@@ -106,8 +106,8 @@ Indicates the GPU's power state, and any reasons for it entering the power state
     - when "GPU API" is "NVAPI", this value is a bitmask of [
       `NVAPI_GPU_PERF_DECREASE` values](https://github.com/NVIDIA/nvapi/blob/67af97007f59c248c01e520d8c8fb70e243a3240/nvapi.h#L4723)
 
-P-State 0 has no power saving, while P-State 15 has the most power saving; that is, P-State 0 is best performance,
-P-State 15 is worst performance.
+P-State 0 has no power saving, while P-State 15 has the most power saving; that is, P-State 0 is for max performance,
+P-State 15 has the worst potential performance.
 
 NVIDIA describe their P-states as:
 
@@ -174,7 +174,7 @@ correctly for OpenXR games:
 - at worst, it will cap your headset to your monitor refresh rate, and the game will use your monitors frame timing for
   VR as well
 
-## Should I use this instead of the tools included in the game or my headsets softawre?
+## Should I use this instead of the tools included in the game or my headsets' software?
 
 Maybe - try both and see which gives you more meaningful data.
 
