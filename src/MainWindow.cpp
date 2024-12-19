@@ -477,11 +477,38 @@ void MainWindow::PlotNVAPI() {
   if (!plot) {
     return;
   }
+
+  double maxPState = 0;
+  for (auto&& frame: mLiveData.mChartFrames) {
+    if (frame.mGpuHighestPState > maxPState) {
+      maxPState = frame.mGpuHighestPState;
+    }
+  }
+  maxPState = std::clamp<double>(2, maxPState + 1, 16);
+  uint8_t tickSize = 1;
+  while (maxPState / tickSize > 8) {
+    tickSize *= 2;
+  }
+  std::vector<std::string> pstateTicks;
+  for (uint32_t i = 0; i < maxPState; i += tickSize) {
+    pstateTicks.emplace_back(std::to_string(i));
+  }
+  std::vector<const char*> pstateTickCStrings;
+  for (auto&& tick: pstateTicks) {
+    pstateTickCStrings.emplace_back(tick.c_str());
+  }
+
   ImPlot::SetupAxis(ImAxis_X1);
   ImPlot::SetupAxis(ImAxis_Y1);
   // 15 is the highest documented value; add a bit more so the line isn't at
   // the top if we ever get there
-  ImPlot::SetupAxisLimits(ImAxis_Y1, 0, 16);
+  ImPlot::SetupAxisLimits(ImAxis_Y1, 0, maxPState, ImPlotCond_Always);
+  ImPlot::SetupAxisTicks(
+    ImAxis_Y1,
+    0,
+    (pstateTicks.size() - 1) * tickSize,
+    pstateTicks.size(),
+    pstateTickCStrings.data());
   ImPlot::SetAxes(ImAxis_X1, ImAxis_Y1);
 
   ImPlot::PlotDigitalG(
@@ -519,6 +546,7 @@ void MainWindow::PlotNVAPI() {
     mLiveData.mChartFrames.data(),
     mLiveData.mChartFrames.size());
 
+  ImPlot::PushStyleVar(ImPlotStyleVar_LineWeight, ImGui::GetFont()->Scale * 3);
   ImPlot::PlotLineG(
     "Lowest P-State",
     &LiveData::PlotFrame<[](const AggregatedFrameMetrics& frame) {
@@ -533,6 +561,7 @@ void MainWindow::PlotNVAPI() {
     }>,
     mLiveData.mChartFrames.data(),
     mLiveData.mChartFrames.size());
+  ImPlot::PopStyleVar();
 }
 
 void MainWindow::PlotFramerate(const double maxMicroseconds) {
@@ -677,7 +706,7 @@ void MainWindow::PlotVideoMemory() {
   ImPlot::SetupAxisTicks(
     ImAxis_Y1,
     0.0,
-    labels.size() * tickSize,
+    (labels.size() - 1) * tickSize,
     labels.size(),
     labelCStrings.data());
   ImPlot::SetAxes(ImAxis_X1, ImAxis_Y1);
