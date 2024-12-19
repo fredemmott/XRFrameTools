@@ -511,6 +511,8 @@ void MainWindow::PlotNVAPI() {
     pstateTickCStrings.data());
   ImPlot::SetAxes(ImAxis_X1, ImAxis_Y1);
 
+  ImPlot::PushStyleVar(
+    ImPlotStyleVar_DigitalBitHeight, ImPlot::GetStyle().DigitalBitHeight * 2);
   ImPlot::PlotDigitalG(
     "Any Limit",
     &LiveData::PlotFrame<[](const AggregatedFrameMetrics& frame) {
@@ -545,6 +547,7 @@ void MainWindow::PlotNVAPI() {
     }>,
     mLiveData.mChartFrames.data(),
     mLiveData.mChartFrames.size());
+  ImPlot::PopStyleVar();
 
   ImPlot::PushStyleVar(ImPlotStyleVar_LineWeight, ImGui::GetFont()->Scale * 3);
   ImPlot::PlotLineG(
