@@ -30,7 +30,7 @@ static constexpr auto RoundUp(auto value, auto multiplier) {
     (value - floor) < value * std::numeric_limits<decltype(value)>::epsilon()) {
     return floor;
   }
-  // int wrapparound shenanigans. If you hit this, you probably want an explicit
+  // int wraparound shenanigans. If you hit this, you probably want an explicit
   // 64-bit conversion in your inputs
   assert(floor + multiplier >= value);
   return floor + multiplier;
