@@ -130,5 +130,9 @@ struct CompileTimeStringHelper {
       mValue[i] = value[i];
     }
   }
+
+  explicit constexpr operator std::string_view() const noexcept {
+    return {mValue, N - 1};
+  }
 };
 }// namespace detail
