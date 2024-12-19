@@ -64,6 +64,7 @@ void MainWindow::UpdateLiveDataThreadEntry(const std::stop_token tok) {
   while (!tok.stop_requested()) {
     if (!mLiveData.mEnabled) {
       WaitForSingleObject(interruptEvent.get(), 1000);
+      continue;
     }
 
     {
