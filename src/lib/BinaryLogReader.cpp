@@ -6,6 +6,7 @@
 #include <wil/filesystem.h>
 
 #include "BinaryLog.hpp"
+#include "Win32Utils.hpp"
 
 using OpenError = BinaryLogReader::OpenError;
 
@@ -29,8 +30,12 @@ OpenError OpenError::BadVersion(
   return {Code::BadVersion, std::tuple {expected, actual}};
 }
 
-OpenError OpenError::BadPerformanceCounterFrequency() {
-  return {Code::BadPerformanceCounterFrequency, {}};
+OpenError OpenError::BadBinaryHeader() {
+  return {Code::BadBinaryHeader, {}};
+}
+
+OpenError OpenError::UnsupportedCompression(const std::string& actual) {
+  return {Code::UnsupportedCompression, actual};
 }
 
 BinaryLogReader::BinaryLogReader(
@@ -88,11 +93,13 @@ BinaryLogReader::Create(const std::filesystem::path& path) {
     return std::unexpected {OpenError::BadMagic(BinaryLog::Magic, magic)};
   }
 
-  const auto version = ReadLine(file.get());
-  if (version != BinaryLog::GetVersionLine()) {
+  const auto formatVersion = ReadLine(file.get());
+  if (formatVersion != BinaryLog::GetVersionLine()) {
     return std::unexpected {
-      OpenError::BadVersion(BinaryLog::GetVersionLine(), version)};
+      OpenError::BadVersion(BinaryLog::GetVersionLine(), formatVersion)};
   }
+  const auto producer = ReadLine(file.get());
+  dprint("Reading binary log - {}", producer);
 
   const auto executableUtf8 = ReadLine(file.get());
   const auto executableFromUtf8
@@ -114,25 +121,38 @@ BinaryLogReader::Create(const std::filesystem::path& path) {
   }
   const std::filesystem::path executable {executableWide};
 
-  LARGE_INTEGER performanceCounterFrequency {};
+  const auto compression = ReadLine(file.get());
+  if (compression != "uncompressed") {
+    return std::unexpected {OpenError::UnsupportedCompression(compression)};
+  }
+
+  using BinaryHeader = BinaryLog::BinaryHeader;
+  char binaryHeaderData[sizeof(BinaryHeader)] {};
   DWORD bytesRead {};
   if (!ReadFile(
         file.get(),
-        &performanceCounterFrequency,
-        sizeof(performanceCounterFrequency),
+        &binaryHeaderData,
+        sizeof(BinaryHeader),
         &bytesRead,
         nullptr)) {
-    return std::unexpected {OpenError::BadPerformanceCounterFrequency()};
+    return std::unexpected {OpenError::BadBinaryHeader()};
   }
-  if (bytesRead != sizeof(performanceCounterFrequency)) {
-    return std::unexpected {OpenError::BadPerformanceCounterFrequency()};
+  if (bytesRead != sizeof(BinaryHeader)) {
+    return std::unexpected {OpenError::BadBinaryHeader()};
+  }
+
+  const auto binaryHeader
+    = BinaryHeader::FromData(binaryHeaderData, sizeof(BinaryHeader));
+  if (!(binaryHeader.mSinceEpochInMicros && binaryHeader.mQPFrequency.QuadPart
+        && binaryHeader.mQPCounter.QuadPart)) {
+    return std::unexpected {OpenError::BadBinaryHeader()};
   }
 
   return BinaryLogReader {
     path,
     std::move(file),
     executable,
-    PerformanceCounterMath {performanceCounterFrequency},
+    PerformanceCounterMath {binaryHeader.mQPFrequency},
   };
 }
 

@@ -1,11 +1,3 @@
-SET(VERSION_HPP "${CMAKE_CURRENT_BINARY_DIR}/include/Version.hpp")
-configure_file(
-  "${CMAKE_CURRENT_SOURCE_DIR}/version.hpp.in"
-  "${VERSION_HPP}"
-  @ONLY
-  NEWLINE_STYLE UNIX
-)
-
 add_executable(
   app
   WIN32
@@ -32,6 +24,7 @@ target_link_libraries(
   CSVWriter
   D3D11GpuTimer
   SHMReader
+  Version
   # vcpkg
   imgui::imgui
   implot::implot

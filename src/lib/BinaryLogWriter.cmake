@@ -1,5 +1,6 @@
 include_guard(DIRECTORY)
 
+include(Version.cmake)
 include(Win32Utils.cmake)
 
 add_library(
@@ -13,5 +14,6 @@ target_link_libraries(
   PUBLIC
   WIL::WIL
   PRIVATE
+  Version
   Win32Utils
 )

@@ -13,6 +13,7 @@
 
 #include "BinaryLog.hpp"
 #include "FramePerformanceCounters.hpp"
+#include "Version.hpp"
 #include "Win32Utils.hpp"
 
 BinaryLogWriter::BinaryLogWriter() {
@@ -90,13 +91,19 @@ void BinaryLogWriter::OpenFile() {
     return;
   }
 
-  const auto header = std::format(
-    "{}\n{}\n{}\n", BinaryLog::Magic, BinaryLog::GetVersionLine(), thisExeUtf8);
+  const auto textHeader = std::format(
+    "{}\n{}\nProduced by: {} v{}\n{}\nuncompressed\n",
+    BinaryLog::Magic,
+    BinaryLog::GetVersionLine(),
+    Version::ProjectName,
+    Version::SemVer,
+    thisExeUtf8);
 
-  WriteFile(mFile.get(), header.data(), header.size(), nullptr, nullptr);
-  LARGE_INTEGER pcf {};
-  QueryPerformanceFrequency(&pcf);
-  WriteFile(mFile.get(), &pcf, sizeof(pcf), nullptr, nullptr);
+  WriteFile(
+    mFile.get(), textHeader.data(), textHeader.size(), nullptr, nullptr);
+
+  const auto binaryHeader = BinaryLog::BinaryHeader::Now();
+  WriteFile(mFile.get(), &binaryHeader, sizeof(binaryHeader), nullptr, nullptr);
 }
 
 uint64_t BinaryLogWriter::GetProduced() {

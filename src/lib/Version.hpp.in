@@ -42,6 +42,7 @@ using LiteralString = const char[N];
   }
 }
 
+constexpr char ProjectName[] = { "@CMAKE_PROJECT_NAME@" };
 constexpr char SemVer[] = { "@READABLE_VERSION@" };
 constexpr wchar_t SemVerW[] = { L"@READABLE_VERSION@" };
 constexpr bool IsTaggedBuild = detail::CMakeBool("@IS_TAGGED_BUILD@");

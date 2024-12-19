@@ -41,10 +41,11 @@ class BinaryLogReader {
       FailedToOpenFile,
       BadMagic,
       BadVersion,
-      BadPerformanceCounterFrequency,
+      BadBinaryHeader,
+      UnsupportedCompression,
     };
 
-    inline Code GetCode() const noexcept {
+    Code GetCode() const noexcept {
       return mCode;
     }
 
@@ -55,11 +56,16 @@ class BinaryLogReader {
     static OpenError BadVersion(
       const std::string& expected,
       const std::string& actual);
-    static OpenError BadPerformanceCounterFrequency();
+    static OpenError UnsupportedCompression(const std::string& actual);
+    static OpenError BadBinaryHeader();
 
    private:
     Code mCode;
-    std::variant<std::monostate, HRESULT, std::tuple<std::string, std::string>>
+    std::variant<
+      std::monostate,
+      HRESULT,
+      std::string,
+      std::tuple<std::string, std::string>>
       mDetails;
 
     OpenError() = delete;
