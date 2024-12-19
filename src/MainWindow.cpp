@@ -748,9 +748,24 @@ void MainWindow::LiveDataSection() {
     return;
   }
 
-  ImGui::Checkbox("Enable updates", &mLiveData.mEnabled);
+  {
+    const auto disabled = ImGuiScoped::DisabledIf(mLiveData.mEnabled);
+    // "Play"
+    if (ImGui::Button("\ue768")) {
+      mLiveData.mEnabled = true;
+    }
+  }
   ImGui::SameLine();
-  if (ImGui::Button("Clear")) {
+  {
+    const auto enabled = ImGuiScoped::EnabledIf(mLiveData.mEnabled);
+    // "Pause"
+    if (ImGui::Button("\ue769")) {
+      mLiveData.mEnabled = false;
+    }
+  }
+  ImGui::SameLine();
+  // "Delete"
+  if (ImGui::Button("\ue74d")) {
     mLiveApp = {};
     mLiveData.mSHMFrameIndex = 0;
     mLiveData.mAggregator.Reset();
