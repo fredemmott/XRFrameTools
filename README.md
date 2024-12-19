@@ -125,6 +125,19 @@ want to change your NVIDIA/Windows performance profile to 'high performance', as
 
 ## Warning about misleading numbers
 
+### Waiting
+
+XRFrameTools measures the time taken on the CPU and GPU between various points; it can not see what is happening during
+this time.
+
+For example, if the CPU is waiting for the GPU, this will show up as both CPU and GPU time, even though the CPU thread
+is idle.
+
+If your total CPU and GPU time are very close, it is likely that the game is waiting for GPU
+work to finish before sending the data to the OpenXR runtime.
+
+### Throttling
+
 Your CPU and GPU can be throttled for various reasons, including:
 
 - power saving
