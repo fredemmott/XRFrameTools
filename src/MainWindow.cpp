@@ -654,6 +654,13 @@ void MainWindow::PlotFrameTimings(const double maxMicroseconds) {
       mLiveData.mChartFrames.data(),
       mLiveData.mChartFrames.size());
 
+    ImPlot::HideNextItem(ImPlotCond_Once);
+    ImPlot::PlotLineG(
+      "Frame Interval",
+      &LiveData::PlotMicroseconds<&AggregatedFrameMetrics::mSincePreviousFrame>,
+      mLiveData.mChartFrames.data(),
+      mLiveData.mChartFrames.size());
+
     ImPlot::PlotLineG(
       "Render GPU",
       &LiveData::PlotMicroseconds<&AggregatedFrameMetrics::mRenderGpu>,
