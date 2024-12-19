@@ -52,14 +52,26 @@ void ImStackedAreaPlotter::Plot(
   };
 
   if (mKind == Kind::StackedArea) {
+    if (mHideNextItem) {
+      ImPlot::HideNextItem(*mHideNextItem);
+    }
     ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, 0.5f);
     ImPlot::PlotShadedG(
       name, &PlotStacked, &bottomData, &PlotStacked, &topData, count);
     ImPlot::PopStyleVar();
+  }
+  if (mHideNextItem) {
+    ImPlot::HideNextItem(*mHideNextItem);
   }
   ImPlot::PlotLineG(name, &PlotStacked, &topData, count);
 
   if (mKind == Kind::Lines || GetLastItemHidden()) {
     mStack.pop_back();
   }
+
+  mHideNextItem = std::nullopt;
+}
+
+void ImStackedAreaPlotter::HideNextItem(ImPlotCond condition) {
+  mHideNextItem = condition;
 }

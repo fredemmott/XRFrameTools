@@ -647,6 +647,7 @@ void MainWindow::PlotFrameTimings(const double maxMicroseconds) {
       &LiveData::PlotMicroseconds<&AggregatedFrameMetrics::mRenderCpu>,
       mLiveData.mChartFrames.data(),
       mLiveData.mChartFrames.size());
+    sap.HideNextItem(ImPlotCond_Once);
     sap.Plot(
       "Wait CPU",
       &LiveData::PlotMicroseconds<&AggregatedFrameMetrics::mWaitCpu>,
