@@ -35,6 +35,9 @@ struct LiveData {
   static constexpr size_t HistorySeconds = 30;
   static constexpr size_t BufferSize = ChartFPS * HistorySeconds;
 
+  wil::unique_handle mInterruptEvent {
+    CreateEventW(nullptr, FALSE, FALSE, nullptr)};
+
   bool mEnabled {true};
   std::chrono::steady_clock::time_point mLastChartFrameAt {};
   LARGE_INTEGER mLatestMetricsAt {};

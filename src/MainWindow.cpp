@@ -56,14 +56,13 @@ MainWindow::~MainWindow() = default;
 LiveData::LiveData() : mAggregator(gPCM) {
 }
 void MainWindow::UpdateLiveDataThreadEntry(const std::stop_token tok) {
-  const auto interruptEvent
-    = wil::unique_handle {CreateEventW(nullptr, FALSE, FALSE, nullptr)};
+  auto interruptEvent = mLiveData.mInterruptEvent.get();
   const std::stop_callback interrupt {
-    tok, std::bind_front(&SetEvent, interruptEvent.get())};
+    tok, std::bind_front(&SetEvent, interruptEvent)};
 
   while (!tok.stop_requested()) {
     if (!mLiveData.mEnabled) {
-      WaitForSingleObject(interruptEvent.get(), 1000);
+      WaitForSingleObject(interruptEvent, INFINITE);
       continue;
     }
 
@@ -71,7 +70,7 @@ void MainWindow::UpdateLiveDataThreadEntry(const std::stop_token tok) {
       std::unique_lock lock(mLiveDataMutex);
       this->UpdateLiveData();
     }
-    WaitForSingleObject(interruptEvent.get(), 1000 / LiveData::ChartFPS);
+    WaitForSingleObject(interruptEvent, 1000 / LiveData::ChartFPS);
   }
 }
 
@@ -753,6 +752,7 @@ void MainWindow::LiveDataSection() {
     // "Play"
     if (ImGui::Button("\ue768")) {
       mLiveData.mEnabled = true;
+      SetEvent(mLiveData.mInterruptEvent.get());
     }
   }
   ImGui::SameLine();
