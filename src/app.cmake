@@ -30,6 +30,7 @@ target_link_libraries(
   BinaryLogReader
   Config
   CSVWriter
+  D3D11GpuTimer
   SHMReader
   # vcpkg
   imgui::imgui

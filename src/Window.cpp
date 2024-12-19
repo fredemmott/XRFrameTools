@@ -14,13 +14,17 @@
 #include <wil/registry.h>
 
 #include <format>
+#include <queue>
 #include <stdexcept>
 #include <thread>
 
 #include "CheckHResult.hpp"
+#include "D3D11GpuTimer.hpp"
 #include "Win32Utils.hpp"
 
 TRACELOGGING_DECLARE_PROVIDER(gTraceProvider);
+static std::queue<D3D11GpuTimer> gPendingTimers;
+static std::queue<D3D11GpuTimer> gAvailableTimers;
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(
   HWND hWnd,
@@ -216,6 +220,29 @@ int Window::Run() noexcept {
       }
       TraceLoggingWriteStop(activity, "Window::Run/WM");
     }
+    while (!gPendingTimers.empty()) {
+      auto& it = gPendingTimers.front();
+      const auto result = it.GetMicroseconds();
+      if (result == std::unexpected {GpuDataError::Pending}) {
+        break;
+      }
+
+      if (result.has_value()) {
+        TraceLoggingWrite(
+          gTraceProvider,
+          "XRFT app frame GPU time",
+          TraceLoggingValue(*result, "micros"));
+      }
+
+      gAvailableTimers.push(std::move(it));
+      gPendingTimers.pop();
+    }
+    if (gAvailableTimers.empty()) {
+      gAvailableTimers.emplace(mD3DDevice.get());
+    }
+    auto timer = std::move(gAvailableTimers.front());
+    gAvailableTimers.pop();
+    timer.Start();
 
     const auto rawRTV = mRenderTargetView.get();
     FLOAT clearColor[4] {0.0f, 0.0f, 0.0f, 1.0f};
@@ -235,6 +262,8 @@ int Window::Run() noexcept {
 
     ImGui::Render();
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+    timer.Stop();
+    gPendingTimers.push(std::move(timer));
     {
       TraceLoggingThreadActivity<gTraceProvider> activity;
       TraceLoggingWriteStart(activity, "Window::Run/Present");

@@ -29,12 +29,13 @@ class Window {
     return std::nullopt;
   }
 
+  wil::com_ptr<ID3D11Device> mD3DDevice;
+  wil::com_ptr<ID3D11DeviceContext> mD3DContext;
+
  private:
   static Window* gInstance;
   wil::unique_hwnd mHwnd;
   wil::com_ptr<IDXGISwapChain1> mSwapChain;
-  wil::com_ptr<ID3D11Device> mD3DDevice;
-  wil::com_ptr<ID3D11DeviceContext> mD3DContext;
   wil::com_ptr<ID3D11RenderTargetView> mRenderTargetView;
   std::optional<int> mExitCode;
   ImVec2 mWindowSize;
