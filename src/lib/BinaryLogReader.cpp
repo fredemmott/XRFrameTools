@@ -42,14 +42,22 @@ BinaryLogReader::BinaryLogReader(
   const std::filesystem::path& logFilePath,
   wil::unique_hfile file,
   const std::filesystem::path& executable,
-  PerformanceCounterMath pcm)
+  PerformanceCounterMath pcm,
+  ClockCalibration cc)
   : mLogFilePath(logFilePath),
     mFile(std::move(file)),
     mExecutable(executable),
-    mPerformanceCounterMath(pcm) {
+    mPerformanceCounterMath(pcm),
+    mClockCalibration(cc) {
 }
 
 BinaryLogReader::~BinaryLogReader() = default;
+
+BinaryLogReader::ClockCalibration BinaryLogReader::GetClockCalibration()
+  const noexcept {
+  return mClockCalibration;
+}
+
 std::filesystem::path BinaryLogReader::GetLogFilePath() const noexcept {
   return mLogFilePath;
 }
@@ -143,8 +151,9 @@ BinaryLogReader::Create(const std::filesystem::path& path) {
 
   const auto binaryHeader
     = BinaryHeader::FromData(binaryHeaderData, sizeof(BinaryHeader));
-  if (!(binaryHeader.mSinceEpochInMicros && binaryHeader.mQPFrequency.QuadPart
-        && binaryHeader.mQPCounter.QuadPart)) {
+  if (!(binaryHeader.mMicrosecondsSinceEpoch
+        && binaryHeader.mQueryPerformanceFrequency.QuadPart
+        && binaryHeader.mQueryPerformanceCounter.QuadPart)) {
     return std::unexpected {OpenError::BadBinaryHeader()};
   }
 
@@ -152,8 +161,11 @@ BinaryLogReader::Create(const std::filesystem::path& path) {
     path,
     std::move(file),
     executable,
-    PerformanceCounterMath {binaryHeader.mQPFrequency},
-  };
+    PerformanceCounterMath {binaryHeader.mQueryPerformanceFrequency},
+    ClockCalibration {
+      .mQueryPerformanceCounter = binaryHeader.mQueryPerformanceCounter,
+      .mMicrosecondsSinceEpoch = binaryHeader.mMicrosecondsSinceEpoch,
+    }};
 }
 
 std::string BinaryLogReader::ReadLine(HANDLE file) noexcept {

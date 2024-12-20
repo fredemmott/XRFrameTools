@@ -40,10 +40,9 @@ void MetricsAggregator::Push(const FramePerformanceCounters& rawFpc) {
     return;
   }
   if (rawFpc.mEndFrameStop.QuadPart < mPreviousFrameEndTime.QuadPart) {
-    // out-of-order frames
-#ifndef _NDEBUG
-    __debugbreak();
-#endif
+    mPreviousFrameEndTime = {};
+    mAccumulator = {};
+    mHavePartialData = false;
     return;
   }
 

@@ -17,7 +17,14 @@ class BinaryLogReader {
   BinaryLogReader(BinaryLogReader&&) = default;
   ~BinaryLogReader();
 
+  struct ClockCalibration {
+    LARGE_INTEGER mQueryPerformanceCounter {};
+    uint64_t mMicrosecondsSinceEpoch {};
+  };
+
   class OpenError;
+
+  [[nodiscard]] ClockCalibration GetClockCalibration() const noexcept;
 
   [[nodiscard]]
   std::filesystem::path GetLogFilePath() const noexcept;
@@ -77,12 +84,14 @@ class BinaryLogReader {
   wil::unique_hfile mFile;
   std::filesystem::path mExecutable;
   PerformanceCounterMath mPerformanceCounterMath;
+  ClockCalibration mClockCalibration {};
 
   BinaryLogReader(
     const std::filesystem::path& path,
     wil::unique_hfile,
     const std::filesystem::path& executable,
-    PerformanceCounterMath);
+    PerformanceCounterMath,
+    ClockCalibration);
 
   static std::string ReadLine(HANDLE) noexcept;
 };

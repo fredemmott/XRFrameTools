@@ -197,7 +197,8 @@ CSVWriter::Write(BinaryLogReader reader, HANDLE out, size_t framesPerRow) {
 
   // Include the UTF-8 Byte Order Mark as Excel and Google Sheets use it
   // as a magic value for UTF-8
-  win32::println(out, "\ufeffTime (µs),{}", GetColumnHeaders());
+  win32::println(
+    out, "\ufeffTime (µs),Time (UTC),Time (Local),{}", GetColumnHeaders());
 
   auto& frameCount = ret.mFrameCount;
   auto& flushCount = ret.mRowCount;
@@ -205,11 +206,27 @@ CSVWriter::Write(BinaryLogReader reader, HANDLE out, size_t framesPerRow) {
   std::optional<LARGE_INTEGER> firstFrameTime {};
   LARGE_INTEGER lastFrameTime {};
 
+  const auto ToUTC = [clockCalibration = reader.GetClockCalibration(),
+                      pcm](const LARGE_INTEGER& time) {
+    const auto sinceCalibration
+      = pcm.ToDuration(clockCalibration.mQueryPerformanceCounter, time);
+    const auto sinceEpoch = sinceCalibration
+      + std::chrono::microseconds(clockCalibration.mMicrosecondsSinceEpoch);
+    static_assert(
+      __cpp_lib_chrono >= 201907L,
+      "Need std::chrono::system_clock to be guaranteed to be UTC, using the "
+      "Unix epoch");
+    return time_point_cast<std::chrono::milliseconds>(
+      std::chrono::system_clock::time_point(sinceEpoch));
+  };
+
+  const auto tz = std::chrono::current_zone();
+
   while (const auto frame = reader.GetNextFrame()) {
     if (!firstFrameTime) {
-      firstFrameTime = frame->mEndFrameStart;
+      firstFrameTime = frame->mEndFrameStop;
     }
-    lastFrameTime = frame->mEndFrameStart;
+    lastFrameTime = frame->mEndFrameStop;
 
     acc.Push(*frame);
     if (++frameCount % framesPerRow != 0) {
@@ -220,10 +237,15 @@ CSVWriter::Write(BinaryLogReader reader, HANDLE out, size_t framesPerRow) {
       continue;
     };
 
+    const auto utc = ToUTC(frame->mEndFrameStop);
+    const auto localTime = std::chrono::zoned_time(tz, utc);
+
     win32::println(
       out,
-      "{},{}",
-      pcm.ToDuration(*firstFrameTime, frame->mEndFrameStart).count(),
+      R"({},"{:%FT%T}","{:%FT%T}",{})",
+      pcm.ToDuration(*firstFrameTime, frame->mEndFrameStop).count(),
+      utc,
+      localTime,
       GetRow(*row));
     ++flushCount;
   }

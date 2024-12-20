@@ -59,19 +59,19 @@ inline auto GetVersionLine() noexcept {
 }
 
 struct BinaryHeader {
-  LARGE_INTEGER mQPFrequency {};
-  LARGE_INTEGER mQPCounter {};
-  uint64_t mSinceEpochInMicros {};
+  LARGE_INTEGER mQueryPerformanceFrequency {};
+  LARGE_INTEGER mQueryPerformanceCounter {};
+  uint64_t mMicrosecondsSinceEpoch {};
 
   static BinaryHeader Now() {
     BinaryHeader ret {};
-    QueryPerformanceFrequency(&ret.mQPFrequency);
-    QueryPerformanceFrequency(&ret.mQPCounter);
+    QueryPerformanceFrequency(&ret.mQueryPerformanceFrequency);
+    QueryPerformanceCounter(&ret.mQueryPerformanceCounter);
 
-    // Check that `std::chrono::system_clock` is guaranteed to use the Unix
-    // epoch
-    static_assert(__cpp_lib_chrono >= 201907L);
-    ret.mSinceEpochInMicros
+    static_assert(
+      __cpp_lib_chrono >= 201907L,
+      "Need std::chrono::system_clock to be guaranteed to use the Unix epoch");
+    ret.mMicrosecondsSinceEpoch
       = duration_cast<std::chrono::microseconds>(
           std::chrono::system_clock::now().time_since_epoch())
           .count();
