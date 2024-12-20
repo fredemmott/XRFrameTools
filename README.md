@@ -53,35 +53,50 @@ As of v0.0.2, logging uses 104 bytes per frame of your hard drive or SSD; this i
 
 Ask in the games forums, subreddit, Discord, or your favorite other place relevant to the game.
 
-Steps vary widely between systems and games, and I am unable to provide any help with any specific games or hardware.
+Steps vary widely between systems and games, and I am unable to provide any help with any specific games or hardware;
+I just provide a measurement tool.
 
 ## What do the numbers mean?
 
-There are 1000 microsecond (*µs*) in 1 millisecond (*ms*), and 1000 milliseconds in 1 second, so there are 1,000,000
-microseconds per second.
+Times are in microseconds; 1000 microseconds (*µs*) in 1 millisecond (*ms*), and 1000 milliseconds in 1 second, so there
+are 1,000,000 microseconds per second.
 
-- FPS: frames per second
-- Frame interval: time between each frame, in microseconds (*µs*). The FPS is 1,000,000 divided by the average frame
+### Game Timings
+
+- *FPS:* frames per second
+- *Frame interval:* time between each frame, in microseconds (*µs*). The FPS is 1,000,000 divided by the average frame
   interval
-- Wait CPU: the amount of time the CPU spends waiting for the best time to start the next frame, to line up with the
-  next display refresh. This is roughly equivalent to 'waiting for VSync'; if you decrease the game's CPU usage, you
-  should expect this number to *increase*, in order to intentionally delay the next frame to line up with the panel
-  refresh
-- Render CPU: the amount of time the CPU spends producing work for the GPU
-- Runtime CPU: the amount of time the CPU spends in the OpenXR runtime, excluding Wait CPU
-- App CPU: the amount of time spent waiting for the game, excluding Render CPU
-- Render GPU: the amount of time the GPU spent working on the work the CPU submitting during "Render CPU"
+- *Render CPU:* the amount of time the CPU spends producing work for the GPU
+- *App CPU:* the amount of time spent waiting for the game, excluding Render CPU
 
-In multithreaded apps, the 'App CPU' may not include all the CPU time spent on each frame; it only includes the amount
-of time that submitting frames to the headset is blocked by the app.
 
-### Video memory
+- *Render GPU:* the amount of time the GPU spent working on the work the CPU submitting during "Render CPU"
 
-- Current Usage: the amount of VRAM used by the game
-- Budget: an upper limit for the amount of VRAM that Windows has provided; if this is less than the Current Usage, you
+### Synchronization Timings
+
+- *Wait CPU:* the time taken by `xrWaitFrame` - *you should not try to reduce this*. The amount of time the CPU spends
+  waiting for the best time to start the next frame, to line up with the next display refresh and reduce latency. This
+  is roughly equivalent to 'wait for v-sync'. The two ways to reduce this number are:
+    - make the game *slower*
+    - 'turbo mode', 'prefer framerate over latency', or other similarly-worded options; these are roughly equivalent to
+      'uncap framerate and turn off v-sync'.
+- *Begin CPU*: the time taken by `xrBeginFrame`. This will usually be very close to 0, and is only included for
+  completeness.
+- *Submit CPU:* the time taken by `xrEndFrame`. When this is high, it is usually waiting for the GPU to finish work that
+  has been submitted; despite being a CPU-based timing, this number is usually lowered by reducing your graphics
+  settings.
+
+v0.0.3 and below included *'Runtime CPU'*; this was a technically-correct but misleading label for a combination of
+'Begin CPU' and 'Submit CPU'. Your runtime vendor and headset manufacturer ***can not*** help you reduce these numbers -
+don't ask them for help with this.
+
+### Video Memory
+
+- *Current Usage:* the amount of VRAM used by the game
+- *Budget:* an upper limit for the amount of VRAM that Windows has provided; if this is less than the Current Usage, you
   should expect crashes and other issues
-- Current reservation: the amount of VRAM the game has reserved
-- Available for Reservation: the maximum amount of VRAM the game could reserve. The current reservation is included in
+- *Current reservation:* the amount of VRAM the game has reserved
+- *Available for Reservation:* the maximum amount of VRAM the game could reserve. The current reservation is included in
   this number
 
 ### GPU Throttling (NVIDIA-only)
