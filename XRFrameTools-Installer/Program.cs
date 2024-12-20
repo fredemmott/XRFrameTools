@@ -145,8 +145,11 @@ ManagedProject CreateProject(DirectoryInfo inputRoot)
     project.SourceBaseDir = inputRoot.FullName;
 
     project.ControlPanelInfo.Manufacturer = "Fred Emmott";
-    project.ControlPanelInfo.InstallLocation = "[INSTALLDIR]";
     project.LicenceFile = "installer/LICENSE.rtf";
+    
+    project.ControlPanelInfo.InstallLocation = "[INSTALLDIR]";
+    project.AddRegValue(new RegValue(RegistryHive.LocalMachine, @"SOFTWARE\Fred Emmott\XRFrameTools", "InstallDir",
+        "[INSTALLDIR]"));
     return project;
 }
 
