@@ -49,12 +49,15 @@ As of v0.0.2, logging uses 104 bytes per frame of your hard drive or SSD; this i
 - 26mb/hour at 72fps
 - 43mb/hour at 120fps
 
-## How do I make my game faster?
+## How do I make a game I'm playing faster?
 
 Ask in the games forums, subreddit, Discord, or your favorite other place relevant to the game.
 
 Steps vary widely between systems and games, and I am unable to provide any help with any specific games or hardware;
 I just provide a measurement tool.
+
+If you're looking at a game you're developing, see [*I'm a developer, how do I use this to make my game
+faster?*](#im-a-developer-how-do-i-use-this-to-make-my-game-faster).
 
 ## What do the numbers mean?
 
@@ -235,3 +238,34 @@ using to view/import the CSV file.
     - the exact meaning depends on the `*GPU API*` field:
         - for `NVAPI`, it is [a bitmask of
           `NVAPI_GPU_PERF_DECREASE` bits](https://github.com/NVIDIA/nvapi/blob/67af97007f59c248c01e520d8c8fb70e243a3240/nvapi.h#L4723-L4732)
+
+## I'm a developer; how do I use this to make my game faster?
+
+You want a profiler, and XRFrameTools is not a profiler.
+
+XRFrameTools makes tradeoffs to be more approachable for end users, and it has no ability to see into game/engine
+internals. XRFrameTools aims to show a simplified view of what is blocking the OpenXR frame loop; in particular, all
+times are clamped to be within a single frame interval, so XRFrameTools does not show the *total* CPU/GPU cost of each
+frame when frames take longer than one frame interval, or in some multithreaded implementations.
+
+You probably want to look at:
+
+- any tools provided by the engine you're using
+- your IDE's profiler
+- Microsoft PIX
+- NVIDIA Nsight
+
+For collecting data in release builds, you might want to evaluate:
+
+- any tools provided by the engine you're using
+- ETL and TraceLogging
+- GPU queries, especially `DISJOINT` and `TIMESTAMP` queries
+- [OpenXR-Tracing](https://github.com/fredemmott/OpenXR-Tracing)
+
+For accurate presentation of this level of detail, you will probably want to:
+
+- collect thread ID along with the timings
+- present the data as a sequence diagram, gantt chart, flame graph, or similar, instead of the line/area charts that
+  XRFrameTools uses
+- aggregate by thread ID
+
