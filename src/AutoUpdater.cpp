@@ -42,7 +42,7 @@ AutoUpdater::AutoUpdater() {
   const auto channel = registryChannel.value_or(defaultChannel);
 
   auto commandLine = std::format(
-    L"--channel={} --local-version={} --silent", channel, Version::SemVerW);
+    L"--channel=2/{} --local-version={} --silent", channel, Version::SemVerW);
   STARTUPINFOW startupInfo {sizeof(STARTUPINFOW)};
   PROCESS_INFORMATION processInfo {};
 
