@@ -9,7 +9,7 @@ using File = WixSharp.File;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-[assembly: InternalsVisibleTo(assemblyName: "XRFrameTools_Installer.aot")] // assembly name + '.aot suffix
+[assembly: InternalsVisibleTo(assemblyName: "XRFrameTools-Installer.aot")] // assembly name + '.aot suffix
 
 var inputRootArg = new Argument<DirectoryInfo>(
     name: "INPUT_ROOT",
