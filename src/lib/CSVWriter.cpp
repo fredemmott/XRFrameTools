@@ -95,7 +95,10 @@ using Row = std::tuple<
   Column<"Render CPU"_cl, ColumnUnit::Micros, &FrameMetrics::mRenderCpu>,
   Column<"Submit CPU"_cl, ColumnUnit::Micros, &FrameMetrics::mEndFrameCpu>,
   Column<"Render GPU"_cl, ColumnUnit::Micros, &FrameMetrics::mRenderGpu>,
-  Column<"Interval"_cl, ColumnUnit::Micros, &FrameMetrics::mSincePreviousFrame>,
+  Column<
+    "Frame Interval"_cl,
+    ColumnUnit::Micros,
+    &FrameMetrics::mSincePreviousFrame>,
   Column<
     "FPS"_cl,
     ColumnUnit::Counter,
