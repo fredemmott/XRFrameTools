@@ -4,9 +4,9 @@ set(UPDATER_EXE "fredemmott_XRFrameTools_Updater.exe")
 
 file(
   DOWNLOAD
-  "https://github.com/fredemmott/autoupdates/releases/download/vicius-v1.7.813%2Bfredemmott.3/Updater-Release.exe"
+  "https://github.com/fredemmott/autoupdates/releases/download/vicius-v1.8.876%2Bfredemmott.1/Updater-Release.exe"
   "${CMAKE_CURRENT_BINARY_DIR}/${UPDATER_EXE}"
-  EXPECTED_HASH SHA256=3826B6461A9B865DB9307AECED11F33B07A21A4F9A849DBAA07C9C1DE9F012AC
+  EXPECTED_HASH "SHA256=bc29aac94233a95aa2b5f00360e0b3b0c4cd89e92ef3c2dca5a15bdde84e7d9c"
 )
 add_custom_target(
   vicius
