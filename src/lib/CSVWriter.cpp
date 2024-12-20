@@ -88,13 +88,6 @@ bool HasAnyOfGPUPerfDecreaseBits(const FrameMetrics& frame) {
 }
 
 using Row = std::tuple<
-  Column<"Count"_cl, ColumnUnit::Counter, &FrameMetrics::mFrameCount>,
-  Column<"App CPU"_cl, ColumnUnit::Micros, &FrameMetrics::mAppCpu>,
-  Column<"Wait CPU"_cl, ColumnUnit::Micros, &FrameMetrics::mWaitFrameCpu>,
-  Column<"Begin CPU"_cl, ColumnUnit::Micros, &FrameMetrics::mBeginFrameCpu>,
-  Column<"Render CPU"_cl, ColumnUnit::Micros, &FrameMetrics::mRenderCpu>,
-  Column<"Submit CPU"_cl, ColumnUnit::Micros, &FrameMetrics::mEndFrameCpu>,
-  Column<"Render GPU"_cl, ColumnUnit::Micros, &FrameMetrics::mRenderGpu>,
   Column<
     "Frame Interval"_cl,
     ColumnUnit::Micros,
@@ -105,6 +98,13 @@ using Row = std::tuple<
     [](const FrameMetrics& frame) {
       return 1.0e6 / frame.mSincePreviousFrame.count();
     }>,
+  Column<"Count"_cl, ColumnUnit::Counter, &FrameMetrics::mFrameCount>,
+  Column<"App CPU"_cl, ColumnUnit::Micros, &FrameMetrics::mAppCpu>,
+  Column<"Render CPU"_cl, ColumnUnit::Micros, &FrameMetrics::mRenderCpu>,
+  Column<"Render GPU"_cl, ColumnUnit::Micros, &FrameMetrics::mRenderGpu>,
+  Column<"Wait CPU"_cl, ColumnUnit::Micros, &FrameMetrics::mWaitFrameCpu>,
+  Column<"Begin CPU"_cl, ColumnUnit::Micros, &FrameMetrics::mBeginFrameCpu>,
+  Column<"Submit CPU"_cl, ColumnUnit::Micros, &FrameMetrics::mEndFrameCpu>,
   Column<
     "VRAM Budget"_cl,
     ColumnUnit::Bytes,
