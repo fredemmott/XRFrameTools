@@ -125,6 +125,7 @@ ManagedProject CreateProject(DirectoryInfo inputRoot)
     project.SourceBaseDir = inputRoot.FullName;
 
     project.ControlPanelInfo.Manufacturer = "Fred Emmott";
+    project.ControlPanelInfo.InstallLocation = "[INSTALLDIR]";
     project.LicenceFile = "installer/LICENSE.rtf";
     return project;
 }
