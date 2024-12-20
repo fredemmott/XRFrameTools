@@ -106,6 +106,25 @@ void BuildMsi(ManagedProject managedProject, FileInfo? fileInfo)
     }
 }
 
+
+void InstallUpdater(SetupEventArgs e)
+{
+    var debugOut = new DefaultTraceListener();
+    if (!e.IsElevated)
+    {
+        debugOut.WriteLine("Not installing updater, no longer elevated");
+        return;
+    }
+    var path = e.InstallDir + "/bin/fredemmott_XRFrameTools_Updater.exe";
+    if (!System.IO.File.Exists(path))
+    {
+        debugOut.WriteLine($"Not installing updater, `{path}` does not exist");
+        return;
+    }
+
+    Process.Start(path, "--install --no-scheduled-task --no-autostart --silent");
+}
+
 ManagedProject CreateProject(DirectoryInfo inputRoot)
 {
     var installerResources = new Feature("Installer Resources");
@@ -118,6 +137,7 @@ ManagedProject CreateProject(DirectoryInfo inputRoot)
                 new Dir("lib", new Files("lib/*.*")),
                 new Dir("share", new Files("share/*.*")),
                 new Files(installerResources, @"installer/*.*")));
+    project.AfterInstall += InstallUpdater;
 
     project.GUID = Guid.Parse("e3334ff2-9b8f-4f3c-ba25-5f965f3b7dc9");
     project.Platform = Platform.x64;
