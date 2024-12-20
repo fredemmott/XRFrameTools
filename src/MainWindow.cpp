@@ -321,7 +321,7 @@ std::vector<BinaryLogReader> MainWindow::PickBinaryLogFiles() {
   picker->SetDefaultFolder(defaultFolderShellItem.get());
 
   constexpr COMDLG_FILTERSPEC fileTypes[] = {
-    {L"Logs files", L"*.XRFrameToolsBinLog"},
+    {L"Logs files", L"*.XRFTBinLog"},
   };
   picker->SetFileTypes(std::size(fileTypes), fileTypes);
   if (picker->Show(this->GetHWND()) != S_OK) {

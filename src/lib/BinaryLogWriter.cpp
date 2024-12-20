@@ -66,7 +66,7 @@ void BinaryLogWriter::OpenFile() {
   const auto now = std::chrono::system_clock::now();
   const auto logPath = GetKnownFolderPath(FOLDERID_LocalAppData)
     / L"XRFrameTools" / "Logs" / thisExe.stem()
-    / std::format(L"{0} {1:%F} {1:%H-%M-%S} {1:%Z}.XRFrameToolsBinLog",
+    / std::format(L"{0} {1:%F} {1:%H-%M-%S} {1:%Z}.XRFTBinLog",
                   thisExe.stem().wstring(),
                   now);
 
