@@ -633,8 +633,8 @@ void MainWindow::PlotFrameTimings(const double maxMicroseconds) {
 
     ImStackedAreaPlotter sap {mFrameTimingPlotKind};
     sap.Plot(
-      "Runtime CPU",
-      &LiveData::PlotMicroseconds<&FrameMetrics::mRuntimeCpu>,
+      "Begin CPU",
+      &LiveData::PlotMicroseconds<&FrameMetrics::mBeginFrameCpu>,
       mLiveData.mChartFrames.data(),
       mLiveData.mChartFrames.size());
     sap.Plot(
@@ -647,10 +647,15 @@ void MainWindow::PlotFrameTimings(const double maxMicroseconds) {
       &LiveData::PlotMicroseconds<&FrameMetrics::mRenderCpu>,
       mLiveData.mChartFrames.data(),
       mLiveData.mChartFrames.size());
+    sap.Plot(
+      "Submit CPU",
+      &LiveData::PlotMicroseconds<&FrameMetrics::mEndFrameCpu>,
+      mLiveData.mChartFrames.data(),
+      mLiveData.mChartFrames.size());
     sap.HideNextItem(ImPlotCond_Once);
     sap.Plot(
       "Wait CPU",
-      &LiveData::PlotMicroseconds<&FrameMetrics::mWaitCpu>,
+      &LiveData::PlotMicroseconds<&FrameMetrics::mWaitFrameCpu>,
       mLiveData.mChartFrames.data(),
       mLiveData.mChartFrames.size());
 

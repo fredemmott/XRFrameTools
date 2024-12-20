@@ -73,10 +73,11 @@ void MetricsAggregator::Push(const FramePerformanceCounters& rawFpc) {
 
   const auto& pcm = mPerformanceCounterMath;
 
-  acc.mWaitCpu += pcm.ToDuration(fpc.mWaitFrameStart, fpc.mWaitFrameStop);
+  acc.mWaitFrameCpu += pcm.ToDuration(fpc.mWaitFrameStart, fpc.mWaitFrameStop);
   acc.mRenderCpu += pcm.ToDuration(fpc.mBeginFrameStop, fpc.mEndFrameStart);
-  acc.mRuntimeCpu += pcm.ToDuration(fpc.mBeginFrameStart, fpc.mBeginFrameStop)
-    + pcm.ToDuration(fpc.mEndFrameStart, fpc.mEndFrameStop);
+  acc.mBeginFrameCpu
+    += pcm.ToDuration(fpc.mBeginFrameStart, fpc.mBeginFrameStop);
+  acc.mEndFrameCpu = pcm.ToDuration(fpc.mEndFrameStart, fpc.mEndFrameStop);
 
   acc.mAppCpu += pcm.ToDuration(mPreviousFrameEndTime, fpc.mWaitFrameStart)
     + pcm.ToDuration(fpc.mWaitFrameStop, fpc.mBeginFrameStart);
@@ -113,9 +114,10 @@ std::optional<FrameMetrics> MetricsAggregator::Flush() {
   }
 
   acc.mSincePreviousFrame /= n;
-  acc.mWaitCpu /= n;
+  acc.mWaitFrameCpu /= n;
   acc.mRenderCpu /= n;
-  acc.mRuntimeCpu /= n;
+  acc.mBeginFrameCpu /= n;
+  acc.mEndFrameCpu /= n;
   acc.mAppCpu /= n;
 
   acc.mRenderGpu /= n;

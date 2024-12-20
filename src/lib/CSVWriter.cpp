@@ -89,10 +89,11 @@ bool HasAnyOfGPUPerfDecreaseBits(const FrameMetrics& frame) {
 
 using Row = std::tuple<
   Column<"Count"_cl, ColumnUnit::Counter, &FrameMetrics::mFrameCount>,
-  Column<"Wait CPU"_cl, ColumnUnit::Micros, &FrameMetrics::mWaitCpu>,
   Column<"App CPU"_cl, ColumnUnit::Micros, &FrameMetrics::mAppCpu>,
-  Column<"Runtime CPU"_cl, ColumnUnit::Micros, &FrameMetrics::mRuntimeCpu>,
+  Column<"Wait CPU"_cl, ColumnUnit::Micros, &FrameMetrics::mWaitFrameCpu>,
+  Column<"Begin CPU"_cl, ColumnUnit::Micros, &FrameMetrics::mBeginFrameCpu>,
   Column<"Render CPU"_cl, ColumnUnit::Micros, &FrameMetrics::mRenderCpu>,
+  Column<"Submit CPU"_cl, ColumnUnit::Micros, &FrameMetrics::mEndFrameCpu>,
   Column<"Render GPU"_cl, ColumnUnit::Micros, &FrameMetrics::mRenderGpu>,
   Column<"Interval"_cl, ColumnUnit::Micros, &FrameMetrics::mSincePreviousFrame>,
   Column<

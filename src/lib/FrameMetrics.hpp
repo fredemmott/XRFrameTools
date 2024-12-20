@@ -12,9 +12,12 @@ struct FrameMetrics {
 
   uint64_t mValidDataBits {};
 
-  std::chrono::microseconds mWaitCpu {};
+  // Together these are 'runtime CPU'
+  std::chrono::microseconds mWaitFrameCpu {};
+  std::chrono::microseconds mBeginFrameCpu {};
+  std::chrono::microseconds mEndFrameCpu {};// A.K.A. 'Submit CPU'
+
   std::chrono::microseconds mRenderCpu {};
-  std::chrono::microseconds mRuntimeCpu {};
   std::chrono::microseconds mAppCpu {};
 
   std::chrono::microseconds mRenderGpu {};
