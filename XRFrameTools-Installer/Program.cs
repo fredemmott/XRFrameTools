@@ -51,9 +51,25 @@ async Task SetProjectVersionFromJson(ManagedProject project, DirectoryInfo input
     {
         project.OutFileName += $"+{version.TweakLabel}.{c.D}";
     }
+
+    project.AddRegKey(
+        new RegKey(
+            project.DefaultFeature,
+            RegistryHive.LocalMachine,
+            @"SOFTWARE\Fred Emmott\XRFrameTools\Version",
+            new RegValue("Semantic", version.Readable),
+            new RegValue("Readable", $"v{version.Readable}"),
+            new RegValue("Major", version.Components.A),
+            new RegValue("Minor", version.Components.B),
+            new RegValue("Build", version.Components.C),
+            new RegValue("Tweak", version.Components.D),
+            new RegValue("Triple", $"{version.Components.A}.{version.Components.B}.{version.Components.C}"),
+            new RegValue("Quad", $"{version.Components.A}.{version.Components.B}.{version.Components.C}.{version.Components.D}")
+        ));
 }
 
-async Task<int> CreateInstaller(DirectoryInfo inputRoot, string? signingKeyId, string? timestampServer, FileInfo? stampFile)
+async Task<int> CreateInstaller(DirectoryInfo inputRoot, string? signingKeyId, string? timestampServer,
+    FileInfo? stampFile)
 {
     if (!System.IO.File.Exists($"{inputRoot}/bin/XRFrameTools.exe"))
     {
@@ -63,7 +79,7 @@ async Task<int> CreateInstaller(DirectoryInfo inputRoot, string? signingKeyId, s
 
     var project = CreateProject(inputRoot);
     await SetProjectVersionFromJson(project, inputRoot);
-    
+
     project.ResolveWildCards();
     CreateShortcuts(inputRoot, project);
     AddCommandLineAliases(project);
@@ -115,6 +131,7 @@ void InstallUpdater(SetupEventArgs e)
         debugOut.WriteLine("Not installing updater, no longer elevated");
         return;
     }
+
     var path = e.InstallDir + "/bin/fredemmott_XRFrameTools_Updater.exe";
     if (!System.IO.File.Exists(path))
     {
@@ -146,7 +163,7 @@ ManagedProject CreateProject(DirectoryInfo inputRoot)
 
     project.ControlPanelInfo.Manufacturer = "Fred Emmott";
     project.LicenceFile = "installer/LICENSE.rtf";
-    
+
     project.ControlPanelInfo.InstallLocation = "[INSTALLDIR]";
     project.AddRegValue(new RegValue(RegistryHive.LocalMachine, @"SOFTWARE\Fred Emmott\XRFrameTools", "InstallDir",
         "[INSTALLDIR]"));
@@ -161,6 +178,7 @@ void RegisterAPILayers(DirectoryInfo directoryInfo, ManagedProject managedProjec
         managedProject.AddRegValue(new RegValue(RegistryHive.LocalMachine, apiLayersKey,
             $"[INSTALLDIR]lib\\{file.Name}", 0));
     }
+
     foreach (var file in directoryInfo.GetDirectories("lib").First().GetFiles("XR_APILAYER_*32.json"))
     {
         var value = new RegValue(RegistryHive.LocalMachine, apiLayersKey,
@@ -208,6 +226,8 @@ class JsonVersionComponents
 class JsonVersionInfo
 {
     public JsonVersionComponents Components { get; set; } = new JsonVersionComponents();
+    public string Readable { get; set; } = string.Empty;
     public string TweakLabel { get; set; } = string.Empty;
+    public bool Stable { get; set; }
     public bool Tagged { get; set; }
 }
