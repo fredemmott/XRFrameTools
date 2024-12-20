@@ -208,3 +208,30 @@ Maybe - try both and see which gives you more meaningful data.
 
 It is possible for games and runtimes to use their internal data to provide better data than this tool can; some games
 and runtimes do, some don't.
+
+## CSV Notes
+
+### Timestamps
+
+The time of each frame is included in 3 formats:
+
+- microseconds since the first frame
+- Date and time in UTC, in milliseconds
+- Date and time in the local timezone when converting the log to CSV, in milliseconds
+
+If you want sub-second timings but only see second-precision times, use a custom date/time format in the tool you are
+using to view/import the CSV file.
+
+### Extra Fields
+
+- *Count:* how many frames were aggregated into the row
+- *GPU API:* `NVAPI` if an NVIDIA card is in use, otherwise empty
+- *GPU Limit Bits:*
+    - if zero, the GPU is not limited/throttled in any way
+    - if not zero, the GPU is being throttled
+    - the `GPU Thermal Limit`, `GPU Power Limit`, and `GPU API Limit` fields are derived from this field
+    - this field is mostly useful for 'is any throttling occurring?'
+    - it can also be useful if you need more detail than those fields provide
+    - the exact meaning depends on the `*GPU API*` field:
+        - for `NVAPI`, it is [a bitmask of
+          `NVAPI_GPU_PERF_DECREASE` bits](https://github.com/NVIDIA/nvapi/blob/67af97007f59c248c01e520d8c8fb70e243a3240/nvapi.h#L4723-L4732)
