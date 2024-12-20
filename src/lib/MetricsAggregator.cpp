@@ -6,121 +6,120 @@
 #include "FrameMetrics.hpp"
 #include "FramePerformanceCounters.hpp"
 
-#define MEAN_METRICS(OP) \
-  OP(WaitCpu) \
-  OP(RuntimeCpu) \
-  OP(RenderCpu) \
-  OP(RenderGpu) \
-  OP(VideoMemoryInfo.Budget) \
-  OP(VideoMemoryInfo.CurrentUsage) \
-  OP(VideoMemoryInfo.AvailableForReservation) \
-  OP(VideoMemoryInfo.CurrentReservation)
+namespace {
+template <class T>
+void SetIfLarger(T* a, T b) {
+  if (b > *a) {
+    *a = b;
+  }
+}
+
+template <>
+void SetIfLarger<LARGE_INTEGER>(LARGE_INTEGER* a, LARGE_INTEGER b) {
+  SetIfLarger(&a->QuadPart, b.QuadPart);
+}
+}// namespace
 
 MetricsAggregator::MetricsAggregator(const PerformanceCounterMath& pc)
   : mPerformanceCounterMath(pc) {
 }
 
-static void AddIfOrdered(
-  const PerformanceCounterMath& pcm,
-  std::chrono::microseconds* acc,
-  LARGE_INTEGER* begin,
-  LARGE_INTEGER end,
-  LARGE_INTEGER newBegin) {
-  if (begin->QuadPart > end.QuadPart) {
+void MetricsAggregator::Push(const FramePerformanceCounters& rawFpc) {
+  if (!rawFpc.mBeginFrameStart.QuadPart) {
+    // We couldn't match the predicted display time in xrEndFrame,
+    // so all core stats are bogus
+    //
+    // For example, this happens if OpenXR Toolkit is running turbo mode
+    // in a layer closer to the game
     return;
   }
-  *acc += pcm.ToDuration(*begin, end);
-  *begin = newBegin;
-}
-
-void MetricsAggregator::Push(const FramePerformanceCounters& fpc) {
-  if (fpc.mEndFrameStart.QuadPart && !mPreviousFrameEndTime.QuadPart) {
+  if (rawFpc.mEndFrameStop.QuadPart && !mPreviousFrameEndTime.QuadPart) {
     // While the frame is overall valid, without an interval (and FPS)
     // we can't draw useful conclusions from it
-    mPreviousFrameEndTime = fpc.mEndFrameStart;
+    mPreviousFrameEndTime = rawFpc.mEndFrameStop;
     return;
   }
-
-  if (++mAccumulator.mFrameCount == 1) {
-    mAccumulator.mValidDataBits = fpc.mValidDataBits;
-
-    mAccumulator.mGpuPerformanceInfo = fpc.mGpuPerformanceInformation;
-    mAccumulator.mGpuLowestPState = fpc.mGpuPerformanceInformation.mPState;
-    mAccumulator.mGpuHighestPState = fpc.mGpuPerformanceInformation.mPState;
-  } else {
-    mAccumulator.mValidDataBits &= fpc.mValidDataBits;
-
-    mAccumulator.mGpuPerformanceInfo.mDecreaseReason
-      |= fpc.mGpuPerformanceInformation.mDecreaseReason;
-    mAccumulator.mGpuLowestPState = std::min(
-      mAccumulator.mGpuLowestPState, fpc.mGpuPerformanceInformation.mPState);
-    mAccumulator.mGpuHighestPState = std::max(
-      mAccumulator.mGpuHighestPState, fpc.mGpuPerformanceInformation.mPState);
-  }
-
-  const auto pcm = mPerformanceCounterMath;
-  std::chrono::microseconds appCpu {};
-
-  if (mPreviousFrameEndTime.QuadPart > fpc.mEndFrameStart.QuadPart) {
-#ifndef NDEBUG
-    //__debugbreak();
-#endif
-    return;
-  }
-
-  const auto interval
-    = pcm.ToDuration(mPreviousFrameEndTime, fpc.mEndFrameStop);
-
-  if (mPreviousFrameEndTime.QuadPart) {
-    mAccumulator.mSincePreviousFrame += interval;
-
-    auto start = mPreviousFrameEndTime;
-    AddIfOrdered(pcm, &appCpu, &start, fpc.mWaitFrameStart, fpc.mWaitFrameStop);
-    AddIfOrdered(
-      pcm, &appCpu, &start, fpc.mBeginFrameStart, fpc.mBeginFrameStop);
-    // Begin -> End is 'render CPU'
-  }
-  if (!(fpc.mWaitFrameStart.QuadPart)) {
-    mHavePartialData = true;
-  }
-
-  mPreviousFrameEndTime = fpc.mEndFrameStop;
-
-  if (mHavePartialData) {
-    return;
-  }
-
-  const FrameMetrics fm {pcm, fpc};
-  if (appCpu > interval) {
-#ifndef NDEBUG
+  if (rawFpc.mEndFrameStop.QuadPart < mPreviousFrameEndTime.QuadPart) {
+    // out-of-order frames
+#ifndef _NDEBUG
     __debugbreak();
 #endif
-    appCpu = interval - (fm.mRenderCpu + fm.mWaitCpu + fm.mRenderCpu);
+    return;
   }
-  mAccumulator.mAppCpu += appCpu;
 
-#define ADD_METRIC(X) mAccumulator.m##X += fm.m##X;
-  MEAN_METRICS(ADD_METRIC)
-#undef ADD_METRIC
+  // Normalize so nothing starts before the previous frame is submitted; this
+  // effectively 'flattens' the timing diagram, discarding anything that
+  // overlaps.
+  //
+  // Overlaps are normal in multithreading. For XRFrameTools, we try to show
+  // what's blocking the render loop, not actual time spent on the frame.
+  //
+  // Actual time on the frame needs in-engine metrics and/or profiling tools
+  auto fpc = rawFpc;
+  SetIfLarger(&fpc.mWaitFrameStart, mPreviousFrameEndTime);
+  SetIfLarger(&fpc.mWaitFrameStop, mPreviousFrameEndTime);
+  SetIfLarger(&fpc.mBeginFrameStart, mPreviousFrameEndTime);
+  SetIfLarger(&fpc.mBeginFrameStop, mPreviousFrameEndTime);
+
+  auto& acc = mAccumulator;
+
+  if (++mAccumulator.mFrameCount == 1) {
+    acc.mValidDataBits = fpc.mValidDataBits;
+    acc.mGpuLowestPState = fpc.mGpuPerformanceInformation.mPState;
+    // Highest handled by max(), lowest isn't as default is 0
+  } else {
+    acc.mValidDataBits &= fpc.mValidDataBits;
+  }
+
+  const auto& pcm = mPerformanceCounterMath;
+
+  acc.mWaitCpu += pcm.ToDuration(fpc.mWaitFrameStart, fpc.mWaitFrameStop);
+  acc.mRenderCpu += pcm.ToDuration(fpc.mBeginFrameStop, fpc.mEndFrameStart);
+  acc.mRuntimeCpu += pcm.ToDuration(fpc.mBeginFrameStart, fpc.mBeginFrameStop)
+    + pcm.ToDuration(fpc.mEndFrameStart, fpc.mEndFrameStop);
+
+  acc.mAppCpu += pcm.ToDuration(mPreviousFrameEndTime, fpc.mWaitFrameStart)
+    + pcm.ToDuration(fpc.mWaitFrameStop, fpc.mBeginFrameStart);
+
+  acc.mRenderGpu += std::chrono::microseconds(fpc.mRenderGpu);
+
+  SetIfLarger(&acc.mVideoMemoryInfo.Budget, fpc.mVideoMemoryInfo.Budget);
+  SetIfLarger(
+    &acc.mVideoMemoryInfo.CurrentUsage, fpc.mVideoMemoryInfo.CurrentUsage);
+  SetIfLarger(
+    &acc.mVideoMemoryInfo.AvailableForReservation,
+    fpc.mVideoMemoryInfo.AvailableForReservation);
+  SetIfLarger(
+    &acc.mVideoMemoryInfo.CurrentReservation,
+    fpc.mVideoMemoryInfo.CurrentReservation);
+
+  acc.mGpuPerformanceDecreaseReasons
+    |= fpc.mGpuPerformanceInformation.mDecreaseReasons;
+  acc.mGpuLowestPState
+    = std::min(acc.mGpuLowestPState, fpc.mGpuPerformanceInformation.mPState);
+  acc.mGpuHighestPState
+    = std::max(acc.mGpuHighestPState, fpc.mGpuPerformanceInformation.mPState);
+
+  acc.mSincePreviousFrame
+    += pcm.ToDuration(mPreviousFrameEndTime, fpc.mEndFrameStop);
+  mPreviousFrameEndTime = fpc.mEndFrameStop;
 }
 
-std::optional<AggregatedFrameMetrics> MetricsAggregator::Flush() {
-  if (mAccumulator.mFrameCount == 0) {
+std::optional<FrameMetrics> MetricsAggregator::Flush() {
+  auto& acc = mAccumulator;
+  const auto n = acc.mFrameCount;
+  if (n == 0) {
     return std::nullopt;
   }
 
-#define DIVIDE_METRIC(X) mAccumulator.m##X /= mAccumulator.mFrameCount;
-#define CLEAR_METRIC(X) mAccumulator.m##X = {};
-  if (mHavePartialData) {
-    MEAN_METRICS(CLEAR_METRIC)
-    CLEAR_METRIC(AppCpu)
-  } else {
-    MEAN_METRICS(DIVIDE_METRIC)
-    DIVIDE_METRIC(AppCpu)
-  }
-  DIVIDE_METRIC(SincePreviousFrame)
-#undef DIVIDE_METRIC
-#undef CLEAR_METRIC
+  acc.mSincePreviousFrame /= n;
+  acc.mWaitCpu /= n;
+  acc.mRenderCpu /= n;
+  acc.mRuntimeCpu /= n;
+  acc.mAppCpu /= n;
+
+  acc.mRenderGpu /= n;
+
   mHavePartialData = false;
   return std::exchange(mAccumulator, {});
 }

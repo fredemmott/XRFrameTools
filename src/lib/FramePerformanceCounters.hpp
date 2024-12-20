@@ -30,7 +30,7 @@ struct FramePerformanceCounters {
 
   // Currently only valid if (mValidData & NVAPI)
   struct GpuPerformanceInfo {
-    uint32_t mDecreaseReason {};// NVAPI_GPU_PERF_DECREASE
+    uint32_t mDecreaseReasons {};// NVAPI_GPU_PERF_DECREASE bitmask
     uint32_t mPState {};// NVAPI_GPU_PSTATE_ID
   } mGpuPerformanceInformation {};
 };

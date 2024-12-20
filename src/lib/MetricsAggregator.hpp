@@ -5,16 +5,8 @@
 #include <optional>
 
 #include "FrameMetrics.hpp"
+#include "FramePerformanceCounters.hpp"
 #include "PerformanceCounterMath.hpp"
-
-struct AggregatedFrameMetrics : FrameMetrics {
-  uint16_t mFrameCount {};
-  std::chrono::microseconds mAppCpu {};
-  std::chrono::microseconds mSincePreviousFrame {};
-
-  uint32_t mGpuLowestPState {};
-  uint32_t mGpuHighestPState {};
-};
 
 class MetricsAggregator final {
  public:
@@ -24,10 +16,10 @@ class MetricsAggregator final {
   MetricsAggregator& operator=(const MetricsAggregator&) = delete;
   MetricsAggregator& operator=(MetricsAggregator&&) = delete;
 
-  MetricsAggregator(const PerformanceCounterMath&);
+  explicit MetricsAggregator(const PerformanceCounterMath&);
 
   void Push(const FramePerformanceCounters&);
-  [[nodiscard]] std::optional<AggregatedFrameMetrics> Flush();
+  [[nodiscard]] std::optional<FrameMetrics> Flush();
 
   void Reset() {
     auto pcm = mPerformanceCounterMath;
@@ -38,7 +30,7 @@ class MetricsAggregator final {
  private:
   const PerformanceCounterMath mPerformanceCounterMath;
 
-  AggregatedFrameMetrics mAccumulator {};
+  FrameMetrics mAccumulator {};
   LARGE_INTEGER mPreviousFrameEndTime {};
   bool mHavePartialData = false;
 };

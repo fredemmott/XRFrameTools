@@ -46,18 +46,14 @@ struct Column {
     }
   }
 
-  static auto GetValue(const AggregatedFrameMetrics& afm) {
+  static auto GetValue(const FrameMetrics& afm) {
     return ConvertValue(GetRawValue(afm));
   }
 
  private:
-  static auto GetRawValue(const AggregatedFrameMetrics& afm) {
-    if constexpr (std::invocable<decltype(TGetter), AggregatedFrameMetrics>) {
+  static auto GetRawValue(const FrameMetrics& afm) {
+    if constexpr (std::invocable<decltype(TGetter), FrameMetrics>) {
       return std::invoke(TGetter, afm);
-    } else if constexpr (std::invocable<
-                           decltype(TGetter),
-                           FramePerformanceCounters::GpuPerformanceInfo>) {
-      return std::invoke(TGetter, afm.mGpuPerformanceInfo);
     } else if constexpr (std::invocable<
                            decltype(TGetter),
                            DXGI_QUERY_VIDEO_MEMORY_INFO>) {
@@ -76,7 +72,7 @@ struct Column {
 };
 
 template <FramePerformanceCounters::ValidDataBits TBit>
-bool HasData(const AggregatedFrameMetrics& afm) {
+bool HasData(const FrameMetrics& afm) {
   return (afm.mValidDataBits & std::to_underlying(TBit))
     == std::to_underlying(TBit);
 }
@@ -84,37 +80,25 @@ constexpr auto& HasNVAPI
   = HasData<FramePerformanceCounters::ValidDataBits::NVAPI>;
 
 template <uint32_t TNVidiaBits>
-bool HasAnyOfGPUPerfDecreaseBits(const AggregatedFrameMetrics& frame) {
+bool HasAnyOfGPUPerfDecreaseBits(const FrameMetrics& frame) {
   if (HasNVAPI(frame)) {
-    return (frame.mGpuPerformanceInfo.mDecreaseReason & TNVidiaBits) != 0;
+    return (frame.mGpuPerformanceDecreaseReasons & TNVidiaBits) != 0;
   }
   return false;
 }
 
 using Row = std::tuple<
-  Column<"Count"_cl, ColumnUnit::Counter, &AggregatedFrameMetrics::mFrameCount>,
-  Column<"Wait CPU"_cl, ColumnUnit::Micros, &AggregatedFrameMetrics::mWaitCpu>,
-  Column<"App CPU"_cl, ColumnUnit::Micros, &AggregatedFrameMetrics::mAppCpu>,
-  Column<
-    "Runtime CPU"_cl,
-    ColumnUnit::Micros,
-    &AggregatedFrameMetrics::mRuntimeCpu>,
-  Column<
-    "Render CPU"_cl,
-    ColumnUnit::Micros,
-    &AggregatedFrameMetrics::mRenderCpu>,
-  Column<
-    "Render GPU"_cl,
-    ColumnUnit::Micros,
-    &AggregatedFrameMetrics::mRenderGpu>,
-  Column<
-    "Interval"_cl,
-    ColumnUnit::Micros,
-    &AggregatedFrameMetrics::mSincePreviousFrame>,
+  Column<"Count"_cl, ColumnUnit::Counter, &FrameMetrics::mFrameCount>,
+  Column<"Wait CPU"_cl, ColumnUnit::Micros, &FrameMetrics::mWaitCpu>,
+  Column<"App CPU"_cl, ColumnUnit::Micros, &FrameMetrics::mAppCpu>,
+  Column<"Runtime CPU"_cl, ColumnUnit::Micros, &FrameMetrics::mRuntimeCpu>,
+  Column<"Render CPU"_cl, ColumnUnit::Micros, &FrameMetrics::mRenderCpu>,
+  Column<"Render GPU"_cl, ColumnUnit::Micros, &FrameMetrics::mRenderGpu>,
+  Column<"Interval"_cl, ColumnUnit::Micros, &FrameMetrics::mSincePreviousFrame>,
   Column<
     "FPS"_cl,
     ColumnUnit::Counter,
-    [](const AggregatedFrameMetrics& frame) {
+    [](const FrameMetrics& frame) {
       return 1.0e6 / frame.mSincePreviousFrame.count();
     }>,
   Column<
@@ -136,22 +120,20 @@ using Row = std::tuple<
   Column<
     "GPU API"_cl,
     ColumnUnit::Opaque,
-    [](const AggregatedFrameMetrics& frame) {
-      return HasNVAPI(frame) ? "NVAPI" : "";
-    }>,
+    [](const FrameMetrics& frame) { return HasNVAPI(frame) ? "NVAPI" : ""; }>,
   Column<
     "GPU P-State Min"_cl,
     ColumnUnit::Opaque,
-    &AggregatedFrameMetrics::mGpuLowestPState>,
+    &FrameMetrics::mGpuLowestPState>,
   Column<
     "GPU P-State Max"_cl,
     ColumnUnit::Opaque,
-    &AggregatedFrameMetrics::mGpuHighestPState>,
+    &FrameMetrics::mGpuHighestPState>,
   Column<
     "GPU Limit Bits"_cl,
     ColumnUnit::Opaque,
-    [](const AggregatedFrameMetrics& frame) {
-      return frame.mGpuPerformanceInfo.mDecreaseReason;
+    [](const FrameMetrics& frame) {
+      return frame.mGpuPerformanceDecreaseReasons;
     }>,
   Column<
     "GPU Thermal Limit"_cl,
@@ -177,7 +159,7 @@ std::string GetColumnHeaders() {
   }(std::make_index_sequence<std::tuple_size_v<Row>> {});
 }
 
-std::string GetRow(const AggregatedFrameMetrics& frame) {
+std::string GetRow(const FrameMetrics& frame) {
   return [&frame]<std::size_t... I>(std::index_sequence<I...>) {
     return std::array {std::tuple_element_t<I, Row>::GetValue(frame)...}
     | std::views::join_with(","s) | std::ranges::to<std::string>();

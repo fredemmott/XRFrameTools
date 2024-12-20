@@ -515,15 +515,15 @@ void MainWindow::PlotNVAPI() {
     ImPlotStyleVar_DigitalBitHeight, ImPlot::GetStyle().DigitalBitHeight * 2);
   ImPlot::PlotDigitalG(
     "Any Limit",
-    &LiveData::PlotFrame<[](const AggregatedFrameMetrics& frame) {
-      return frame.mGpuPerformanceInfo.mDecreaseReason != 0;
+    &LiveData::PlotFrame<[](const FrameMetrics& frame) {
+      return frame.mGpuPerformanceDecreaseReasons != 0;
     }>,
     mLiveData.mChartFrames.data(),
     mLiveData.mChartFrames.size());
   ImPlot::PlotDigitalG(
     "Thermal Limit",
-    &LiveData::PlotFrame<[](const AggregatedFrameMetrics& frame) {
-      return (frame.mGpuPerformanceInfo.mDecreaseReason
+    &LiveData::PlotFrame<[](const FrameMetrics& frame) {
+      return (frame.mGpuPerformanceDecreaseReasons
               & NV_GPU_PERF_DECREASE_REASON_THERMAL_PROTECTION)
         != 0;
     }>,
@@ -531,8 +531,8 @@ void MainWindow::PlotNVAPI() {
     mLiveData.mChartFrames.size());
   ImPlot::PlotDigitalG(
     "Power Limit",
-    &LiveData::PlotFrame<[](const AggregatedFrameMetrics& frame) {
-      return (frame.mGpuPerformanceInfo.mDecreaseReason
+    &LiveData::PlotFrame<[](const FrameMetrics& frame) {
+      return (frame.mGpuPerformanceDecreaseReasons
               & (NV_GPU_PERF_DECREASE_REASON_POWER_CONTROL | NV_GPU_PERF_DECREASE_REASON_AC_BATT | NV_GPU_PERF_DECREASE_REASON_INSUFFICIENT_POWER))
         != 0;
     }>,
@@ -540,8 +540,8 @@ void MainWindow::PlotNVAPI() {
     mLiveData.mChartFrames.size());
   ImPlot::PlotDigitalG(
     "API Limit",
-    &LiveData::PlotFrame<[](const AggregatedFrameMetrics& frame) {
-      return (frame.mGpuPerformanceInfo.mDecreaseReason
+    &LiveData::PlotFrame<[](const FrameMetrics& frame) {
+      return (frame.mGpuPerformanceDecreaseReasons
               & NV_GPU_PERF_DECREASE_REASON_API_TRIGGERED)
         != 0;
     }>,
@@ -552,14 +552,14 @@ void MainWindow::PlotNVAPI() {
   ImPlot::PushStyleVar(ImPlotStyleVar_LineWeight, ImGui::GetFont()->Scale * 3);
   ImPlot::PlotLineG(
     "Lowest P-State",
-    &LiveData::PlotFrame<[](const AggregatedFrameMetrics& frame) {
+    &LiveData::PlotFrame<[](const FrameMetrics& frame) {
       return frame.mGpuLowestPState;
     }>,
     mLiveData.mChartFrames.data(),
     mLiveData.mChartFrames.size());
   ImPlot::PlotLineG(
     "Highest P-State",
-    &LiveData::PlotFrame<[](const AggregatedFrameMetrics& frame) {
+    &LiveData::PlotFrame<[](const FrameMetrics& frame) {
       return frame.mGpuHighestPState;
     }>,
     mLiveData.mChartFrames.data(),
@@ -634,36 +634,36 @@ void MainWindow::PlotFrameTimings(const double maxMicroseconds) {
     ImStackedAreaPlotter sap {mFrameTimingPlotKind};
     sap.Plot(
       "Runtime CPU",
-      &LiveData::PlotMicroseconds<&AggregatedFrameMetrics::mRuntimeCpu>,
+      &LiveData::PlotMicroseconds<&FrameMetrics::mRuntimeCpu>,
       mLiveData.mChartFrames.data(),
       mLiveData.mChartFrames.size());
     sap.Plot(
       "App CPU",
-      &LiveData::PlotMicroseconds<&AggregatedFrameMetrics::mAppCpu>,
+      &LiveData::PlotMicroseconds<&FrameMetrics::mAppCpu>,
       mLiveData.mChartFrames.data(),
       mLiveData.mChartFrames.size());
     sap.Plot(
       "Render CPU",
-      &LiveData::PlotMicroseconds<&AggregatedFrameMetrics::mRenderCpu>,
+      &LiveData::PlotMicroseconds<&FrameMetrics::mRenderCpu>,
       mLiveData.mChartFrames.data(),
       mLiveData.mChartFrames.size());
     sap.HideNextItem(ImPlotCond_Once);
     sap.Plot(
       "Wait CPU",
-      &LiveData::PlotMicroseconds<&AggregatedFrameMetrics::mWaitCpu>,
+      &LiveData::PlotMicroseconds<&FrameMetrics::mWaitCpu>,
       mLiveData.mChartFrames.data(),
       mLiveData.mChartFrames.size());
 
     ImPlot::PlotLineG(
       "Render GPU",
-      &LiveData::PlotMicroseconds<&AggregatedFrameMetrics::mRenderGpu>,
+      &LiveData::PlotMicroseconds<&FrameMetrics::mRenderGpu>,
       mLiveData.mChartFrames.data(),
       mLiveData.mChartFrames.size());
 
     ImPlot::HideNextItem(ImPlotCond_Once);
     ImPlot::PlotLineG(
       "Frame Interval",
-      &LiveData::PlotMicroseconds<&AggregatedFrameMetrics::mSincePreviousFrame>,
+      &LiveData::PlotMicroseconds<&FrameMetrics::mSincePreviousFrame>,
       mLiveData.mChartFrames.data(),
       mLiveData.mChartFrames.size());
   }
@@ -685,7 +685,7 @@ void MainWindow::PlotVideoMemory() {
     return;
   }
   const auto max = std::ranges::max_element(
-    mLiveData.mChartFrames, {}, [](const AggregatedFrameMetrics& frame) {
+    mLiveData.mChartFrames, {}, [](const FrameMetrics& frame) {
       return std::max(
         frame.mVideoMemoryInfo.AvailableForReservation,
         frame.mVideoMemoryInfo.Budget);
@@ -899,7 +899,7 @@ void MainWindow::UpdateLiveData() {
   }
 
   if (metrics->mFrameCount == 0) {
-    __debugbreak();
+    return;
   }
 
   if (

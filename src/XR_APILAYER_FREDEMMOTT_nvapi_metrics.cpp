@@ -139,7 +139,7 @@ XrResult hooked_xrEndFrame(
       EnqueueFrameData(
         frameEndInfo->displayTime,
         GpuPerformanceInfo {
-          .mDecreaseReason = perfDecrease,
+          .mDecreaseReasons = perfDecrease,
           .mPState = static_cast<uint32_t>(pstate),
         });
     }

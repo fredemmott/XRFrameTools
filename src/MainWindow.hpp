@@ -41,13 +41,13 @@ struct LiveData {
   bool mEnabled {true};
   std::chrono::steady_clock::time_point mLastChartFrameAt {};
   LARGE_INTEGER mLatestMetricsAt {};
-  AggregatedFrameMetrics mLatestMetrics {};
+  FrameMetrics mLatestMetrics {};
 
   uint64_t mSHMFrameIndex {};
 
   MetricsAggregator mAggregator;
 
-  using ChartFrames = ContiguousRingBuffer<AggregatedFrameMetrics, BufferSize>;
+  using ChartFrames = ContiguousRingBuffer<FrameMetrics, BufferSize>;
 
   ChartFrames mChartFrames {BufferSize};
 
@@ -62,7 +62,7 @@ struct LiveData {
 
   template <auto Getter>
   static ImPlotPoint PlotMicroseconds(int idx, void* user_data) {
-    return PlotFrame<[](const AggregatedFrameMetrics& frame) {
+    return PlotFrame<[](const FrameMetrics& frame) {
       return duration_cast<std::chrono::microseconds>(
                std::invoke(Getter, frame))
         .count();
@@ -71,7 +71,7 @@ struct LiveData {
 
   template <auto Getter>
   static ImPlotPoint PlotVideoMemory(int idx, void* user_data) {
-    return PlotFrame<[](const AggregatedFrameMetrics& frame) {
+    return PlotFrame<[](const FrameMetrics& frame) {
       return std::invoke(Getter, frame.mVideoMemoryInfo) / (1024 * 1024);
     }>(idx, user_data);
   }
