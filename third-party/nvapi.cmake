@@ -1,4 +1,10 @@
 include(ExternalProject)
+
+if(BUILD_BITNESS EQUAL 64)
+  set(NVAPI_LIB "amd64/nvapi64.lib")
+else()
+  set(NVAPI_LIB "x86/nvapi.lib")
+endif()
 ExternalProject_Add(
   nvapi-ep
   GIT_REPOSITORY "https://github.com/NVIDIA/nvapi.git"
@@ -11,6 +17,8 @@ ExternalProject_Add(
   DOWNLOAD_EXTRACT_TIMESTAMP ON
 
   STEP_TARGETS download
+  BUILD_BYPRODUCTS "<SOURCE_DIR>/${NVAPI_LIB}"
+
 )
 
 ExternalProject_Get_property(nvapi-ep SOURCE_DIR)
@@ -23,11 +31,7 @@ target_include_directories(
   "${SOURCE_DIR}"
   "${SOURCE_DIR}"
 )
-if(BUILD_BITNESS EQUAL 64)
-  target_link_libraries(nvapi INTERFACE "${SOURCE_DIR}/amd64/nvapi64.lib")
-else()
-  target_link_libraries(nvapi INTERFACE "${SOURCE_DIR}/x86/nvapi.lib")
-endif()
+target_link_libraries(nvapi INTERFACE "${SOURCE_DIR}/${NVAPI_LIB}")
 
 include(add_copyright_file)
 add_copyright_file("nvapi" "${SOURCE_DIR}/License.txt" DEPENDS nvapi-ep-download)
