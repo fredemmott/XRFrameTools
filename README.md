@@ -106,23 +106,16 @@ don't ask them for help with this.
 
 Indicates the GPUs power state, and any reasons for it entering the power state.
 
-- Any Limit: the GPU is being throttled for any reason
-- Lowest P-State: the lowest power-save state the GPU has entered
-- Highest P-State: the highest power-save state the GPU has entered
-- Thermal limit: the GPU is too hot
-- Power limit: one of the following:
+- *Lowest P-State:* the lowest power-save (highest power usage/performance) state the GPU has entered
+- *Highest P-State:* the highest power-save (lowest power usage/performance) state the GPU has entered
+- *Any Limit:* the GPU is being throttled for any reason
+- *Thermal limit:* the GPU performance has been limited because it is too hot
+- *Power limit:* one of the following:
     - the GPU is limited by the current performance plan
     - the GPU is limited because the computer is running from battery power
     - the GPU is drawing an unsafe amount of power
     - one or more of the GPUs power connectors are not connected to the PSU
-- API limit: the GPUs performance has been limited by the game, or via the NVIDIA Control Panel or third-party tool
-- GPU API (CSV only): the API used to retrieve GPU information. This is `"NVAPI"` for NVIDIA cards, or empty if data is
-  not available
-- GPU limit bits (CSV only): the raw reasons for throttling, as provided by `NVAPI`
-    - if 0, no throttling is occurring
-    - if any other value, throttling is occurring
-    - when "GPU API" is "NVAPI", this value is a bitmask of [
-      `NVAPI_GPU_PERF_DECREASE` values](https://github.com/NVIDIA/nvapi/blob/67af97007f59c248c01e520d8c8fb70e243a3240/nvapi.h#L4723)
+- *API limit:* the GPUs performance has been limited by the game, or via the NVIDIA Control Panel or third-party tool
 
 P-State 0 has no power saving, while P-State 15 has the most power saving; that is, P-State 0 is for max performance,
 P-State 15 has the worst potential performance.
