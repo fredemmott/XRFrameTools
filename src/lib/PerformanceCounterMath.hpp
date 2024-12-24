@@ -38,6 +38,20 @@ class PerformanceCounterMath {
     return ToDuration({.QuadPart = end.QuadPart - begin.QuadPart});
   }
 
+  /* e.g.:
+   * - binary log header contains a performance counter and real timestamp for
+   *   the start of the log
+   * - the binary logging happens in its own thread
+   * - this means on heavily loaded systems it's possible for the first few
+   *   frames to have an end time that is *before* the log start time.
+   */
+  [[nodiscard]]
+  inline std::chrono::microseconds ToDurationAllowNegative(
+    const LARGE_INTEGER begin,
+    const LARGE_INTEGER end) const {
+    return ToDuration({.QuadPart = end.QuadPart - begin.QuadPart});
+  }
+
   /** Get an instance that is only valid for data collected on this system,
    * since the last reboot.
    */

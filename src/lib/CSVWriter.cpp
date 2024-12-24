@@ -211,8 +211,11 @@ CSVWriter::Write(BinaryLogReader reader, HANDLE out, size_t framesPerRow) {
 
   const auto ToUTC = [clockCalibration = reader.GetClockCalibration(),
                       pcm](const LARGE_INTEGER& time) {
-    const auto sinceCalibration
-      = pcm.ToDuration(clockCalibration.mQueryPerformanceCounter, time);
+    // As the binary logging happens in its' own thread, it's possible for the
+    // first few threads to have an end time that is earlier than the log start
+    // time
+    const auto sinceCalibration = pcm.ToDurationAllowNegative(
+      clockCalibration.mQueryPerformanceCounter, time);
     const auto sinceEpoch = sinceCalibration
       + std::chrono::microseconds(clockCalibration.mMicrosecondsSinceEpoch);
     static_assert(
