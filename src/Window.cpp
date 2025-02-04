@@ -267,7 +267,7 @@ int Window::Run() noexcept {
     {
       TraceLoggingThreadActivity<gTraceProvider> activity;
       TraceLoggingWriteStart(activity, "Window::Run/Present");
-      mSwapChain->Present(1, 0);
+      mSwapChain->Present(0, 0);
       TraceLoggingWriteStop(activity, "Window::Run/Present");
     }
 
