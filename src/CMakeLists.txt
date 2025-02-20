@@ -52,6 +52,7 @@ macro(add_xr_api_layer TARGET)
     OUTPUT_NAME "XR_APILAYER_FREDEMMOTT_${TARGET}${BUILD_BITNESS}"
     ENABLE_EXPORTS ON
   )
+  target_compile_definitions(${TARGET} PRIVATE "API_LAYER_TARGET_NAME=\"${TARGET}${BUILDBITNESS}\"")
   add_version_resource(${TARGET})
 
   add_dependencies(api-layers "${TARGET}")
@@ -78,13 +79,15 @@ target_link_libraries(d3d11_metrics PRIVATE D3D11GpuTimer)
 add_xr_api_layer(nvapi_metrics XR_APILAYER_FREDEMMOTT_nvapi_metrics.cpp)
 target_link_libraries(nvapi_metrics PRIVATE nvapi)
 
+add_xr_api_layer(d3d11_overlay XR_APILAYER_FREDEMMOTT_d3d11_overlay.cpp)
+
 if(NOT BUILD_UI)
   return()
 endif()
 
-find_package(magic_enum CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(implot CONFIG REQUIRED)
+find_package(magic_enum CONFIG REQUIRED)
 
 add_executable(
   binlog-to-csv

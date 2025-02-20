@@ -71,6 +71,9 @@ XRAPI_ATTR XrResult XRAPI_CALL xrCreateApiLayerInstance(
     "xr" #FUNC, \
     reinterpret_cast<PFN_xrVoidFunction*>(&next_xr##FUNC));
   HOOKED_OPENXR_FUNCS(INIT_NEXT)
+#ifdef NEXT_OPENXR_FUNCS
+  NEXT_OPENXR_FUNCS(INIT_NEXT)
+#endif
 #undef INIT_NEXT
 
   return ret;
@@ -128,17 +131,18 @@ xrNegotiateLoaderApiLayerInterface(
     return XR_ERROR_INITIALIZATION_FAILED;
   }
   if (supports1_1) {
-    dprint("Using OpenXR version 1.1");
+    dprint("[{}] Using OpenXR version 1.1", API_LAYER_TARGET_NAME);
     apiLayerRequest->layerApiVersion = XR_API_VERSION_1_1;
   } else {
-    dprint("Using OpenXR version 1.0");
+    dprint("[{}] Using OpenXR version 1.0", API_LAYER_TARGET_NAME);
     apiLayerRequest->layerApiVersion = XR_API_VERSION_1_0;
   }
 
   apiLayerRequest->getInstanceProcAddr = &xrGetInstanceProcAddr;
   apiLayerRequest->createApiLayerInstance = &xrCreateApiLayerInstance;
 
-  dprint("xrNegotiateLoaderApiLayerInterface success");
+  dprint(
+    "[{}] xrNegotiateLoaderApiLayerInterface success", API_LAYER_TARGET_NAME);
 
   return XR_SUCCESS;
 }
