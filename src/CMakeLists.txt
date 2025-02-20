@@ -1,5 +1,6 @@
 include(add_version_resource)
 
+find_package(imgui CONFIG REQUIRED)
 find_package(wil CONFIG REQUIRED)
 
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/lib")
@@ -79,13 +80,17 @@ target_link_libraries(d3d11_metrics PRIVATE D3D11GpuTimer)
 add_xr_api_layer(nvapi_metrics XR_APILAYER_FREDEMMOTT_nvapi_metrics.cpp)
 target_link_libraries(nvapi_metrics PRIVATE nvapi)
 
-add_xr_api_layer(d3d11_overlay XR_APILAYER_FREDEMMOTT_d3d11_overlay.cpp)
+add_xr_api_layer(
+  d3d11_overlay
+  XR_APILAYER_FREDEMMOTT_d3d11_overlay.cpp
+  imgui_impl_win32_headless.cpp imgui_impl_win32_headless.hpp
+)
+target_link_libraries(d3d11_overlay PRIVATE imgui::imgui)
 
 if(NOT BUILD_UI)
   return()
 endif()
 
-find_package(imgui CONFIG REQUIRED)
 find_package(implot CONFIG REQUIRED)
 find_package(magic_enum CONFIG REQUIRED)
 

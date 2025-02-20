@@ -10,6 +10,8 @@
 
 #include <Knownfolders.h>
 #include <d3d11_1.h>
+#include <imgui.h>
+#include <imgui_impl_dx11.h>
 #include <openxr/openxr.h>
 #include <openxr/openxr_loader_negotiation.h>
 #include <openxr/openxr_platform.h>
@@ -26,6 +28,7 @@
 #include "CheckHResult.hpp"
 #include "FrameMetricsStore.hpp"
 #include "Win32Utils.hpp"
+#include "imgui_impl_win32_headless.hpp"
 
 #define HOOKED_OPENXR_FUNCS(X) \
   X(CreateSession) \
@@ -81,12 +84,103 @@ std::unordered_map<XrSwapchain, SwapchainInfo> gSwapchains;
 Overlay gOverlay {};
 std::optional<float> gPredictedDisplayPeriod {};
 
-std::expected<std::tuple<uint32_t, uint32_t>, XrResult> PaintOverlay() {
+void InitImGui() {
+  IMGUI_CHECKVERSION();
+  ImGui::CreateContext();
+  ImGui::StyleColorsDark();
+  ImGui_ImplWin32_Headless_Init();
+  ImGui_ImplDX11_Init(gDevice, gContext.get());
+}
+
+void ShutdownImGui() {
+  ImGui_ImplDX11_Shutdown();
+  ImGui_ImplWin32_Headless_Shutdown();
+  ImGui::DestroyContext();
+}
+
+std::expected<std::tuple<uint32_t, uint32_t>, XrResult> PaintOverlay(
+  ID3D11RenderTargetView* rtv,
+  const XrFrameEndInfo* frameEndInfo) {
+  constexpr FLOAT BackgroundColor[4] {0.5f, 0.5f, 0.5f, 0.6f};
   auto ctx = gContext.get();
-  wil::com_ptr<ID3DDeviceContextState> previousState;
-  ctx->SwapDeviceContextState(gContextState.get(), std::out_ptr(previousState));
-  auto restoreState = wil::scope_exit(
-    [&] { ctx->SwapDeviceContextState(previousState.get(), nullptr); });
+  ID3D11RenderTargetView* rtvs[] {rtv};
+  ctx->OMSetRenderTargets(std::size(rtvs), rtvs, nullptr);
+  ctx->ClearRenderTargetView(rtv, BackgroundColor);
+
+  ImGui_ImplWin32_Headless_NewFrame({
+    static_cast<float>(Overlay::Width),
+    static_cast<float>(Overlay::Height),
+  });
+  ImGui_ImplDX11_NewFrame();
+  ImGui::NewFrame();
+
+  ImGui::SetNextWindowPos({0, 0});
+  ImGui::SetNextWindowSize({Overlay::Width, Overlay::Height});
+  ImGui::Begin(
+    "MainWindow",
+    nullptr,
+    ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
+      | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar);
+
+  ImGui::Text("XRFrameTools - D3D11");
+  ImGui::SeparatorText("System");
+  ImGui::Text("Headset: %s", gSystemName.c_str());
+
+  ImGui::Text(
+    "Runtime:\n  %s\n  v%d.%d.%d",
+    gRuntimeName.c_str(),
+    XR_VERSION_MAJOR(gRuntimeVersion),
+    XR_VERSION_MINOR(gRuntimeVersion),
+    XR_VERSION_PATCH(gRuntimeVersion));
+  ImGui::Text("Max layers: %d", gMaxLayers);
+  ImGui::SeparatorText("Resolution");
+  ImGui::Text(
+    "Suggested: %d x %d",
+    std::get<0>(gSuggestedSize),
+    std::get<1>(gSuggestedSize));
+  ImGui::Text("Actual:");
+  for (uint32_t i = 0; i < frameEndInfo->layerCount; ++i) {
+    const auto& layer = frameEndInfo->layers[i];
+    switch (layer->type) {
+      case XR_TYPE_COMPOSITION_LAYER_PROJECTION: {
+        const auto projection
+          = reinterpret_cast<const XrCompositionLayerProjection*>(layer);
+        ImGui::Text("  %d (projection):", i);
+        for (uint32_t j = 0; j < projection->viewCount; ++j) {
+          auto& extent = projection->views[j].subImage.imageRect.extent;
+          ImGui::Text("    View %u: %dx%d", j, extent.width, extent.height);
+        }
+        break;
+      }
+      case XR_TYPE_COMPOSITION_LAYER_QUAD: {
+        const auto quad
+          = reinterpret_cast<const XrCompositionLayerQuad*>(layer);
+        const auto& extent = quad->subImage.imageRect.extent;
+        ImGui::Text("  %d (quad): %dx%d", i, extent.width, extent.height);
+        break;
+      }
+      default:
+        ImGui::Text("  %d: unrecognized (%ud)", i, layer->type);
+        break;
+    }
+  }
+  ImGui::SeparatorText("Performance");
+  if (gPredictedDisplayPeriod && gPredictedDisplayPeriod.value() > 0.001f) {
+    dprint("Predicted display period: {}", gPredictedDisplayPeriod.value());
+    ImGui::Text("Predicted hz: %f", 1 / gPredictedDisplayPeriod.value());
+  }
+
+  ImGui::End();
+
+  ImGui::Render();
+  ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+
+  return std::tuple {Overlay::Width, Overlay::Height};
+}
+
+std::expected<std::tuple<uint32_t, uint32_t>, XrResult> PaintOverlay(
+  const XrFrameEndInfo* frameEndInfo) {
+  auto ctx = gContext.get();
 
   uint32_t imageIndex {};
   if (const auto res
@@ -95,9 +189,6 @@ std::expected<std::tuple<uint32_t, uint32_t>, XrResult> PaintOverlay() {
     dprint("⚠️ xrAcquireSwapchainImage failed: {}", std::to_underlying(res));
     return std::unexpected {res};
   }
-  FLOAT color[4] {0.5f, 0.5f, 0.5f, 0.6f};
-
-  auto rtv = gOverlay.mRenderTargetViews.at(imageIndex).get();
 
   XrSwapchainImageWaitInfo waitInfo {
     .type = XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO,
@@ -110,10 +201,8 @@ std::expected<std::tuple<uint32_t, uint32_t>, XrResult> PaintOverlay() {
     return std::unexpected {res};
   }
 
-  ctx->ClearRenderTargetView(rtv, color);
-  ctx->OMSetRenderTargets(1, &rtv, nullptr);
-
-  // TODO: draw text
+  auto rtv = gOverlay.mRenderTargetViews.at(imageIndex).get();
+  const auto ret = PaintOverlay(rtv, frameEndInfo);
 
   if (const auto res
       = next_xrReleaseSwapchainImage(gOverlay.mSwapchain, nullptr);
@@ -122,7 +211,7 @@ std::expected<std::tuple<uint32_t, uint32_t>, XrResult> PaintOverlay() {
     return std::unexpected {res};
   }
 
-  return std::tuple {Overlay::Width, Overlay::Height};
+  return ret;
 }
 
 XrResult hooked_xrCreateSwapchain(
@@ -168,8 +257,8 @@ bool CreateOverlaySwapchain(XrSession session) {
     DXGI_FORMAT mRenderTargetViewFormat {};
   };
   constexpr DesiredFormat DesiredFormats[] {
-    {DXGI_FORMAT_B8G8R8A8_UNORM_SRGB, DXGI_FORMAT_B8G8R8A8_UNORM},
     {DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, DXGI_FORMAT_R8G8B8A8_UNORM},
+    {DXGI_FORMAT_B8G8R8A8_UNORM_SRGB, DXGI_FORMAT_B8G8R8A8_UNORM},
   };
 
   std::optional<DesiredFormat> format;
@@ -235,18 +324,15 @@ bool CreateOverlaySwapchain(XrSession session) {
     return false;
   }
 
-  const D3D11_RENDER_TARGET_VIEW_DESC rtv {
+  const D3D11_RENDER_TARGET_VIEW_DESC rtvDesc {
     .Format = format->mRenderTargetViewFormat,
     .ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D,
-    .Texture2D = {
-      .MipSlice = 0,
-    },
   };
   for (auto&& image: images) {
     gOverlay.mTextures.emplace_back(image.texture);
-    gOverlay.mRenderTargetViews.emplace_back(nullptr);
-    gDevice->CreateRenderTargetView(
-      image.texture, &rtv, std::out_ptr(gOverlay.mRenderTargetViews.back()));
+    wil::com_ptr<ID3D11RenderTargetView> rtv;
+    gDevice->CreateRenderTargetView(image.texture, &rtvDesc, std::out_ptr(rtv));
+    gOverlay.mRenderTargetViews.emplace_back(std::move(rtv));
   }
 
   return true;
@@ -338,6 +424,8 @@ XrResult hooked_xrCreateSession(
     std::get<0>(gSuggestedSize),
     std::get<1>(gSuggestedSize));
 
+  InitImGui();
+
   return ret;
 }
 
@@ -350,6 +438,7 @@ XrResult hooked_xrDestroySession(XrSession session) {
   const auto ret = next_xrDestroySession(session);
 
   if (gDevice) {
+    ShutdownImGui();
     gContextState = nullptr;
     gContext = nullptr;
     gDevice = nullptr;
@@ -379,7 +468,7 @@ XrResult hooked_xrEndFrame(
     return passthrough();
   }
 
-  PaintOverlay();
+  PaintOverlay(frameEndInfo);
 
   std::vector<const XrCompositionLayerBaseHeader*> nextLayers;
   nextLayers.reserve(frameEndInfo->layerCount + 1);
@@ -392,7 +481,10 @@ XrResult hooked_xrEndFrame(
     .space = gOverlay.mSpace,
     .subImage = {
       .swapchain = gOverlay.mSwapchain,
-      .imageRect = { Overlay::Width, Overlay::Height }, // TODO
+      .imageRect = {
+        {0, 0},
+        {Overlay::Width, Overlay::Height},
+      },
     },
     .pose = {
       .orientation = { 0, 0, 0, 1 },
