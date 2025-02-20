@@ -85,7 +85,7 @@ add_xr_api_layer(
   XR_APILAYER_FREDEMMOTT_d3d11_overlay.cpp
   imgui_impl_win32_headless.cpp imgui_impl_win32_headless.hpp
 )
-target_link_libraries(d3d11_overlay PRIVATE imgui::imgui)
+target_link_libraries(d3d11_overlay PRIVATE imgui::imgui SHMReader)
 
 if(NOT BUILD_UI)
   return()

@@ -26,7 +26,8 @@
 #include <unordered_map>
 
 #include "CheckHResult.hpp"
-#include "FrameMetricsStore.hpp"
+#include "SHM.hpp"
+#include "SHMReader.hpp"
 #include "Win32Utils.hpp"
 #include "imgui_impl_win32_headless.hpp"
 
@@ -49,11 +50,19 @@
   X(CreateReferenceSpace) \
   X(DestroySpace)
 
+#define DESIRED_OPENXR_EXTENSIONS(X) \
+  X(XR_FB_DISPLAY_REFRESH_RATE_EXTENSION_NAME)
+
+#define NEXT_OPENXR_EXT_FUNCS(X) \
+  X(XR_FB_DISPLAY_REFRESH_RATE_EXTENSION_NAME, GetDisplayRefreshRateFB)
 namespace {
 
 #define DECLARE_NEXT(IT) PFN_xr##IT next_xr##IT {nullptr};
+#define DECLARE_EXT_NEXT(EXT, IT) DECLARE_NEXT(IT)
 HOOKED_OPENXR_FUNCS(DECLARE_NEXT)
 NEXT_OPENXR_FUNCS(DECLARE_NEXT)
+NEXT_OPENXR_EXT_FUNCS(DECLARE_EXT_NEXT)
+#undef DECLARE_EXT_NEXT
 #undef DECLARE_NEXT
 
 struct SwapchainInfo {
@@ -61,7 +70,7 @@ struct SwapchainInfo {
   uint32_t mHeight {};
 };
 struct Overlay {
-  static constexpr auto Width = 512;
+  static constexpr auto Width = 256;
   static constexpr auto Height = 512;
   XrSwapchain mSwapchain {};
   XrSpace mSpace {};
@@ -83,6 +92,8 @@ std::tuple<uint32_t, uint32_t> gSuggestedSize {};
 std::unordered_map<XrSwapchain, SwapchainInfo> gSwapchains;
 Overlay gOverlay {};
 std::optional<float> gPredictedDisplayPeriod {};
+SHMReader gSHMReader;
+LARGE_INTEGER gPerformanceCounterFrequency {};
 
 void InitImGui() {
   IMGUI_CHECKVERSION();
@@ -100,6 +111,7 @@ void ShutdownImGui() {
 
 std::expected<std::tuple<uint32_t, uint32_t>, XrResult> PaintOverlay(
   ID3D11RenderTargetView* rtv,
+  XrSession session,
   const XrFrameEndInfo* frameEndInfo) {
   constexpr FLOAT BackgroundColor[4] {0.5f, 0.5f, 0.5f, 0.6f};
   auto ctx = gContext.get();
@@ -165,9 +177,78 @@ std::expected<std::tuple<uint32_t, uint32_t>, XrResult> PaintOverlay(
     }
   }
   ImGui::SeparatorText("Performance");
-  if (gPredictedDisplayPeriod && gPredictedDisplayPeriod.value() > 0.001f) {
-    dprint("Predicted display period: {}", gPredictedDisplayPeriod.value());
-    ImGui::Text("Predicted hz: %f", 1 / gPredictedDisplayPeriod.value());
+  if (next_xrGetDisplayRefreshRateFB) {
+    float refreshRate {};
+    if (XR_SUCCEEDED(next_xrGetDisplayRefreshRateFB(session, &refreshRate))) {
+      ImGui::Text(
+        "%s",
+        std::format(
+          "Panel:\n  {:.0f}hz ({:.1f}ms)", refreshRate, 1000 / refreshRate)
+          .c_str());
+    }
+  }
+  if (gPredictedDisplayPeriod) {
+    ImGui::Text(
+      "Predicted by runtime:\n  %s",
+      std::format(
+        "{:.1f}hz ({:.1f}ms)",
+        (1000 * 1000 * 1000.0f) / gPredictedDisplayPeriod.value(),
+        gPredictedDisplayPeriod.value() / (1000 * 1000.0f))
+        .c_str());
+  }
+  if (gSHMReader.IsValid() && gSHMReader->mFrameCount > 1) {
+    const auto& shm = gSHMReader.GetSHM();
+    const auto max = shm.mFrameCount - 1;
+    const auto min = max > 10 ? max - 10 : 0;
+
+    int64_t previous = 0;
+    int64_t sum = 0;
+    int64_t worst = 0;
+    int count = 0;
+    for (uint64_t i = min; i <= max; ++i) {
+      const auto time
+        = shm.mFrameMetrics.at(i % SHM::MaxFrameCount).mEndFrameStop.QuadPart;
+      if (!previous) {
+        previous = time;
+        continue;
+      }
+      const auto duration = time - previous;
+      previous = time;
+      sum += duration;
+      if (duration > worst) {
+        worst = duration;
+      }
+      ++count;
+    }
+    const auto averageMs
+      = (1000.0f * sum) / (count * gPerformanceCounterFrequency.QuadPart);
+    const auto worstMs
+      = (1000.0f * worst) / gPerformanceCounterFrequency.QuadPart;
+    ImGui::Text(
+      "Average (%d frames):\n  %s",
+      count,
+      std::format("{:.1f}hz ({:.1f}ms)", 1000 / averageMs, averageMs).c_str());
+    ImGui::Text(
+      "Worst (%d frames):\n  %s",
+      count,
+      std::format("{:.1f}hz ({:.1f}ms)", 1000 / worstMs, worstMs).c_str());
+
+    auto& latestFrame = shm.mFrameMetrics.at(max % SHM::MaxFrameCount);
+    if ((latestFrame.mValidDataBits
+         & std::to_underlying(
+           FramePerformanceCounters::ValidDataBits::D3D11))) {
+      ImGui::Text(
+        "VRAM: %llu MB / %llu MB",
+        latestFrame.mVideoMemoryInfo.CurrentUsage / 1024 / 1024,
+        latestFrame.mVideoMemoryInfo.Budget / 1024 / 1024);
+    }
+    if ((latestFrame.mValidDataBits
+         & std::to_underlying(
+           FramePerformanceCounters::ValidDataBits::NVAPI))) {
+      ImGui::Text(
+        "GPU throttled: %s",
+        latestFrame.mGpuPerformanceInformation.mDecreaseReasons ? "YES" : "no");
+    }
   }
 
   ImGui::End();
@@ -179,6 +260,7 @@ std::expected<std::tuple<uint32_t, uint32_t>, XrResult> PaintOverlay(
 }
 
 std::expected<std::tuple<uint32_t, uint32_t>, XrResult> PaintOverlay(
+  XrSession session,
   const XrFrameEndInfo* frameEndInfo) {
   auto ctx = gContext.get();
 
@@ -202,7 +284,7 @@ std::expected<std::tuple<uint32_t, uint32_t>, XrResult> PaintOverlay(
   }
 
   auto rtv = gOverlay.mRenderTargetViews.at(imageIndex).get();
-  const auto ret = PaintOverlay(rtv, frameEndInfo);
+  const auto ret = PaintOverlay(rtv, session, frameEndInfo);
 
   if (const auto res
       = next_xrReleaseSwapchainImage(gOverlay.mSwapchain, nullptr);
@@ -278,8 +360,8 @@ bool CreateOverlaySwapchain(XrSession session) {
     .usageFlags = XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT,
     .format = format->mTextureFormat,
     .sampleCount = 1,
-    .width = 768,
-    .height = 1024,
+    .width = Overlay::Width,
+    .height = Overlay::Height,
     .faceCount = 1,
     .arraySize = 1,
     .mipCount = 1,
@@ -346,6 +428,8 @@ XrResult hooked_xrCreateSession(
   if (XR_FAILED(ret)) {
     return ret;
   }
+
+  QueryPerformanceFrequency(&gPerformanceCounterFrequency);
 
   for (auto it = static_cast<const XrBaseInStructure*>(createInfo->next); it;
        it = it->next) {
@@ -454,7 +538,7 @@ XrResult hooked_xrWaitFrame(
   if (XR_FAILED(ret) || !gDevice) {
     return ret;
   }
-  gPredictedDisplayPeriod = frameState->predictedDisplayTime;
+  gPredictedDisplayPeriod = frameState->predictedDisplayPeriod;
   return ret;
 }
 
@@ -468,7 +552,7 @@ XrResult hooked_xrEndFrame(
     return passthrough();
   }
 
-  PaintOverlay(frameEndInfo);
+  PaintOverlay(session, frameEndInfo);
 
   std::vector<const XrCompositionLayerBaseHeader*> nextLayers;
   nextLayers.reserve(frameEndInfo->layerCount + 1);
@@ -490,7 +574,7 @@ XrResult hooked_xrEndFrame(
       .orientation = { 0, 0, 0, 1 },
       .position = { 0, 0, -0.2 },
     },
-    .size = {0.1f, 0.1f}, // TODO
+    .size = {0.1f, 0.2f}, // TODO
   };
   nextLayers.emplace_back(
     reinterpret_cast<XrCompositionLayerBaseHeader*>(&overlayLayer));

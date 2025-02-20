@@ -8,6 +8,7 @@
 // 4. include "APILayerEntrypoints.inc.cpp"
 
 #include <source_location>
+#include <span>
 template <class F, auto Next, auto Layer>
 struct XRFuncDelegator;
 
@@ -57,12 +58,39 @@ XRAPI_ATTR XrResult XRAPI_CALL xrCreateApiLayerInstance(
   XrInstance* instance) {
   next_xrGetInstanceProcAddr = layerInfo->nextInfo->nextGetInstanceProcAddr;
 
+  XrInstanceCreateInfo nextCreateInfo {*info};
+#ifdef DESIRED_OPENXR_EXTENSIONS
+  std::vector<const char*> extensionNames;
+  extensionNames.append_range(
+    std::span {info->enabledExtensionNames, info->enabledExtensionCount});
+#define ADD_EXT(X) \
+  bool have##X {true}; \
+  extensionNames.push_back(X);
+  DESIRED_OPENXR_EXTENSIONS(ADD_EXT)
+#undef ADD_EXT
+  nextCreateInfo.enabledExtensionCount
+    = static_cast<uint32_t>(extensionNames.size());
+  nextCreateInfo.enabledExtensionNames = extensionNames.data();
+#endif
+
   auto nextLayerInfo = *layerInfo;
   nextLayerInfo.nextInfo = nextLayerInfo.nextInfo->next;
-  const auto ret = layerInfo->nextInfo->nextCreateApiLayerInstance(
-    info, &nextLayerInfo, instance);
+  auto ret = layerInfo->nextInfo->nextCreateApiLayerInstance(
+    &nextCreateInfo, &nextLayerInfo, instance);
   if (XR_FAILED(ret)) {
-    return ret;
+    dprint(
+      "⚠️ xrCreateApiLayerInstance failed, retrying without additional "
+      "extensions");
+    ret = layerInfo->nextInfo->nextCreateApiLayerInstance(
+      info, &nextLayerInfo, instance);
+    if (XR_FAILED(ret)) {
+      return ret;
+    }
+#ifdef DESIRED_OPENXR_EXTENSIONS
+#define DISABLE_EXT(X) have##X = false;
+    DESIRED_OPENXR_EXTENSIONS(DISABLE_EXT)
+#undef DISABLE_EXT
+#endif
   }
 
 #define INIT_NEXT(FUNC) \
@@ -71,9 +99,17 @@ XRAPI_ATTR XrResult XRAPI_CALL xrCreateApiLayerInstance(
     "xr" #FUNC, \
     reinterpret_cast<PFN_xrVoidFunction*>(&next_xr##FUNC));
   HOOKED_OPENXR_FUNCS(INIT_NEXT)
+#define INIT_NEXT_EXT(EXT, FUNC) \
+  if (have##EXT) { \
+    INIT_NEXT(FUNC); \
+  }
 #ifdef NEXT_OPENXR_FUNCS
   NEXT_OPENXR_FUNCS(INIT_NEXT)
 #endif
+#ifdef NEXT_OPENXR_EXT_FUNCS
+  NEXT_OPENXR_EXT_FUNCS(INIT_NEXT_EXT)
+#endif
+#undef INIT_NEXT_EXT
 #undef INIT_NEXT
 
   return ret;
