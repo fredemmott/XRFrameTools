@@ -32,7 +32,11 @@ jobs:
           name: XRFrameTools-v${{steps.bundle.outputs.version}}-DebugSymbols
           path: debug-bundle
       - name: install WiX
-        run: dotnet tool install --global wix
+        run: |
+          # Don't actually care about these specific versions, but as of 2025-03-11, just
+          # saying 'wix' will pull in a broken mix of WiX5 and the WiX6 beta
+          dotnet tool install --global wix --version 5.0.2
+          wix extension add -g WixToolset.UI.wixext/5.0.2
       - name: Build installer
         shell: pwsh
         id: build-installer
