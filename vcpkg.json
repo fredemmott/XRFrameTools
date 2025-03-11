@@ -4,7 +4,6 @@
     "wil",
     {
       "name": "imgui",
-      "platform": "x64",
       "features": [
         "dx11-binding",
         "win32-binding"
