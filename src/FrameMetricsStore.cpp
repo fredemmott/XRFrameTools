@@ -28,11 +28,12 @@ FrameMetricsStore::Frame& FrameMetricsStore::GetForBeginFrame() noexcept {
 FrameMetricsStore::Frame& FrameMetricsStore::GetForEndFrame(
   uint64_t displayTime) noexcept {
   const auto it
-    = std::ranges::find(mTrackedFrames, displayTime, &Frame::mDisplayTime);
+    = std::ranges::find(mTrackedFrames, displayTime, &Frame::mXrDisplayTime);
   if (it == mTrackedFrames.end()) {
     auto& ret
       = mUntrackedFrames.at(mUntrackedFrameCount++ % mTrackedFrames.size());
     ret.Reset();
+    ret.mXrDisplayTime = displayTime;
     return ret;
   }
 

@@ -162,7 +162,7 @@ static ApiLayerApi::LogFrameHookResult LoggingHook(Frame* frame) {
 
   std::unique_lock lock(gFramesMutex);
   auto it = std::ranges::find(
-    gFrames, frame->mDisplayTime, &D3D11Frame::GetDisplayTime);
+    gFrames, frame->mXrDisplayTime, &D3D11Frame::GetDisplayTime);
   if (it == gFrames.end()) {
     return Result::Ready;
   }

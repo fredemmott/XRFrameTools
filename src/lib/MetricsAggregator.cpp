@@ -61,6 +61,7 @@ void MetricsAggregator::Push(const FramePerformanceCounters& rawFpc) {
   SetIfLarger(&fpc.mBeginFrameStop, mPreviousFrameEndTime);
 
   auto& acc = mAccumulator;
+  SetIfLarger(&acc.mLastXrDisplayTime, fpc.mXrDisplayTime);
 
   if (++mAccumulator.mFrameCount == 1) {
     acc.mValidDataBits = fpc.mValidDataBits;

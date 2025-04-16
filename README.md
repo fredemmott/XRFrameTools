@@ -48,6 +48,8 @@ As of v0.0.2, logging uses 104 bytes per frame of your hard drive or SSD; this i
 
 - 26mb/hour at 72fps
 - 43mb/hour at 120fps
+- 
+The next version is expected to use 112 bytes per frame.
 
 ## How do I make a game I'm playing faster?
 

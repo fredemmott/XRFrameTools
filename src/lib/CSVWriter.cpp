@@ -89,6 +89,10 @@ bool HasAnyOfGPUPerfDecreaseBits(const FrameMetrics& frame) {
 
 using Row = std::tuple<
   Column<
+    "Display XrTime"_cl,
+    ColumnUnit::Opaque,
+    &FrameMetrics::mLastXrDisplayTime>,
+  Column<
     "Frame Interval"_cl,
     ColumnUnit::Micros,
     &FrameMetrics::mSincePreviousFrame>,

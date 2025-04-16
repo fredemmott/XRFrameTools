@@ -8,7 +8,7 @@
 // All values are from QueryPerformanceCounters
 struct FramePerformanceCounters {
   // Used for BinLog
-  static constexpr auto Version = "2024-12-17#01";
+  static constexpr auto Version = "2025-03-03#01";
 
   enum class ValidDataBits : uint64_t {
     D3D11 = 1,
@@ -17,6 +17,8 @@ struct FramePerformanceCounters {
   uint64_t mValidDataBits {};
 
   // core_metrics - QueryPerformanceCounter()
+  uint64_t mXrDisplayTime {};
+
   LARGE_INTEGER mWaitFrameStart {};
   LARGE_INTEGER mWaitFrameStop {};
   LARGE_INTEGER mBeginFrameStart {};
@@ -36,4 +38,4 @@ struct FramePerformanceCounters {
 };
 // Increase this if you add additional members; this assertion is here to make
 // sure the struct is the same size in 32-bit and 64-bit builds
-static_assert(sizeof(FramePerformanceCounters) == 104);
+static_assert(sizeof(FramePerformanceCounters) == 112);

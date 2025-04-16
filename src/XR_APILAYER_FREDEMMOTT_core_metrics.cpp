@@ -111,7 +111,7 @@ XrResult hooked_xrWaitFrame(
     return ret;
   }
 
-  frame.mDisplayTime = frameState->predictedDisplayTime;
+  frame.mXrDisplayTime = frameState->predictedDisplayTime;
   frame.mCanBegin.store(true);
   return ret;
 }

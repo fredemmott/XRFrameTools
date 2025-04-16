@@ -6,9 +6,7 @@
 
 #include "FramePerformanceCounters.hpp"
 
-struct Frame : FramePerformanceCounters {
-  uint64_t mDisplayTime {};
-};
+using Frame = FramePerformanceCounters;
 
 class FrameMetricsStore {
  public:
