@@ -44,11 +44,12 @@ favorite other program.
    off, even if the XRFrameTools program isn't running
 3. Once the game has closed or you've disabled logging, click 'Convert log files to CSV...'
 
-As of v0.0.2, logging uses 104 bytes per frame of your hard drive or SSD; this is:
+As of v0.2.0, logging uses 112 bytes per frame of your hard drive or SSD; this is:
 
-- 26mb/hour at 72fps
-- 43mb/hour at 120fps
-- 
+- 28mb/hour at 72fps
+- 35mb/hour at 90fps
+- 46mb/hour at 120fps
+
 The next version is expected to use 112 bytes per frame.
 
 ## How do I make a game I'm playing faster?
