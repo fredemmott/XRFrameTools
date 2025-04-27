@@ -162,6 +162,11 @@ XrResult hooked_xrEndFrame(
       gFrames, frameEndInfo->displayTime, &D3D11Frame::GetPredictedDisplayTime);
     if (it != gFrames.end()) {
       it->StopRender(frameEndInfo->displayTime);
+    } else {
+      TraceLoggingWrite(
+        gTraceProvider,
+        "xrEndFrame/MissingBeginFrame",
+        TraceLoggingValue(frameEndInfo->displayTime, "DisplayTime"));
     }
   }
   return next_xrEndFrame(session, frameEndInfo);
