@@ -56,6 +56,9 @@ std::expected<uint64_t, GpuDataError> D3D11GpuTimer::GetMicroseconds() {
   const auto stopHr
     = mContext->GetData(mStopQuery.get(), &stop, sizeof(stop), 0);
   if (startHr != S_OK || stopHr != S_OK) {
+    if (startHr == S_FALSE || stopHr == S_FALSE) {
+      return std::unexpected {GpuDataError::Pending};
+    }
     TraceLoggingWrite(
       gTraceProvider,
       "D3D11GpuTimer/Timer-GetData/Failure",
