@@ -80,12 +80,15 @@ target_link_libraries(d3d11_metrics PRIVATE D3D11GpuTimer)
 add_xr_api_layer(nvapi_metrics XR_APILAYER_FREDEMMOTT_nvapi_metrics.cpp)
 target_link_libraries(nvapi_metrics PRIVATE nvapi)
 
-add_xr_api_layer(
-  d3d11_overlay
-  XR_APILAYER_FREDEMMOTT_d3d11_overlay.cpp
-  imgui_impl_win32_headless.cpp imgui_impl_win32_headless.hpp
-)
-target_link_libraries(d3d11_overlay PRIVATE imgui::imgui SHMReader)
+option(BUILD_D3D11_OVERLAY "Build D3D11 overlay (work in progress)" OFF)
+if (BUILD_D3D11_OVERLAY)
+  add_xr_api_layer(
+    d3d11_overlay
+    XR_APILAYER_FREDEMMOTT_d3d11_overlay.cpp
+    imgui_impl_win32_headless.cpp imgui_impl_win32_headless.hpp
+  )
+  target_link_libraries(d3d11_overlay PRIVATE imgui::imgui SHMReader)
+endif()
 
 if(NOT BUILD_UI)
   return()
