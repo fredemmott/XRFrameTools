@@ -128,6 +128,9 @@ XrResult hooked_xrBeginFrame(
   XrSession session,
   const XrFrameBeginInfo* frameBeginInfo) noexcept {
   const auto ret = next_xrBeginFrame(session, frameBeginInfo);
+  if (!gIsEnabled) {
+    return ret;
+  }
 
   if (!XR_SUCCEEDED(ret)) {
     return ret;
@@ -156,6 +159,10 @@ PFN_xrEndFrame next_xrEndFrame {nullptr};
 XrResult hooked_xrEndFrame(
   XrSession session,
   const XrFrameEndInfo* frameEndInfo) noexcept {
+  if (!gIsEnabled) {
+    return next_xrEndFrame(session, frameEndInfo);
+  }
+
   {
     std::unique_lock lock(gFramesMutex);
     auto it = std::ranges::find(
@@ -266,6 +273,10 @@ XrResult hooked_xrWaitFrame(
   const XrFrameWaitInfo* frameWaitInfo,
   XrFrameState* frameState) noexcept {
   const auto ret = next_xrWaitFrame(session, frameWaitInfo, frameState);
+  if (!gIsEnabled) {
+    return ret;
+  }
+
   if (XR_FAILED(ret)) {
     gWaitedDisplayTime = 0;
     return ret;
@@ -281,6 +292,7 @@ XrResult hooked_xrDestroySession(XrSession session) {
     std::unique_lock lock {gFramesMutex};
     gFrames.clear();
     gDevice = nullptr;
+    gIsEnabled = false;
   }
   return next_xrDestroySession(session);
 }
