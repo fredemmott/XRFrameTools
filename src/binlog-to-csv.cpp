@@ -1,7 +1,11 @@
 // Copyright 2024 Fred Emmott <fred@fredemmott.com>
 // SPDX-License-Identifier: MIT
 
+// clang-format off
 #include <Windows.h>
+#include <TraceLoggingProvider.h>
+// clang-format on
+
 #include <wil/filesystem.h>
 
 #include <BinaryLogReader.hpp>
@@ -12,6 +16,15 @@
 
 #include "CSVWriter.hpp"
 #include "Win32Utils.hpp"
+
+/* PS>
+ * [System.Diagnostics.Tracing.EventSource]::new("XRFrameTools.binlog-to-csv")
+ * 36fe3cde-e5a7-531c-dc77-0eea71c447bd
+ */
+TRACELOGGING_DEFINE_PROVIDER(
+  gTraceProvider,
+  "XRFrameTools.binlog-to-csv",
+  (0x36fe3cde, 0xe5a7, 0x531c, 0xdc, 0x77, 0x0e, 0xea, 0x71, 0xc4, 0x47, 0xbd));
 
 namespace {
 

@@ -2,13 +2,18 @@
 // SPDX-License-Identifier: MIT
 #pragma once
 
+// clang-format off
 #include <Windows.h>
+#include <TraceLoggingProvider.h>
+// clang-format on
 
 #include <filesystem>
 #include <print>
 #include <utility>
 
 #include "detail/GuidParser.hpp"
+
+TRACELOGGING_DECLARE_PROVIDER(gTraceProvider);
 
 std::filesystem::path GetKnownFolderPath(const GUID& folderID);
 
@@ -52,6 +57,8 @@ template <class... Args>
 void dprint(std::format_string<Args...> format, Args&&... args) {
   const auto inner = std::format(format, std::forward<Args>(args)...);
   const auto outer = std::format("XRFrameTools: {}\n", inner);
+  TraceLoggingWrite(
+    gTraceProvider, "dprint", TraceLoggingValue(inner.data(), "Message"));
   OutputDebugStringA(outer.data());
 }
 
@@ -59,5 +66,7 @@ template <class... Args>
 void dprint(std::wformat_string<Args...> format, Args&&... args) {
   const auto inner = std::format(format, std::forward<Args>(args)...);
   const auto outer = std::format(L"XRFrameTools: {}\n", inner);
+  TraceLoggingWrite(
+    gTraceProvider, "dprint", TraceLoggingValue(inner.data(), "Message"));
   OutputDebugStringW(outer.data());
 }
