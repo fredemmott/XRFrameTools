@@ -182,3 +182,17 @@ xrNegotiateLoaderApiLayerInterface(
 
   return XR_SUCCESS;
 }
+
+BOOL WINAPI DllMain(HINSTANCE hinst, DWORD dwReason, LPVOID reserved) {
+  switch (dwReason) {
+    case DLL_PROCESS_ATTACH:
+      TraceLoggingRegister(gTraceProvider);
+      TraceLoggingWrite(gTraceProvider, "DllMain/ProcessAttach");
+      break;
+    case DLL_PROCESS_DETACH:
+      TraceLoggingWrite(gTraceProvider, "DllMain/ProcessDetach");
+      TraceLoggingUnregister(gTraceProvider);
+      break;
+  }
+  return TRUE;
+}

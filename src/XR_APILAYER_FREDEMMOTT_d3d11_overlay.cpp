@@ -3,6 +3,7 @@
 
 // clang-format off
 #include <Windows.h>
+#include <TraceLoggingProvider.h>
 // clang-format on
 
 #define XR_USE_GRAPHICS_API_D3D11
@@ -30,6 +31,16 @@
 #include "SHMReader.hpp"
 #include "Win32Utils.hpp"
 #include "imgui_impl_win32_headless.hpp"
+
+
+/* PS>
+ * [System.Diagnostics.Tracing.EventSource]::new("XRFrameTools.d3d11_overlay")
+ * 602a04c4-e6cf-5e94-e069-d3a167126f04
+ */
+TRACELOGGING_DEFINE_PROVIDER(
+  gTraceProvider,
+  "XRFrameTools.d3d11_overlay",
+  (0x602a04c4, 0xe6cf, 0x5e94, 0xe0, 0x69, 0xd3, 0xa1, 0x67, 0x12, 0x6f, 0x04));
 
 #define HOOKED_OPENXR_FUNCS(X) \
   X(CreateSession) \

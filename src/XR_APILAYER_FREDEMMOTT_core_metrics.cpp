@@ -3,6 +3,7 @@
 
 // clang-format off
 #include <Windows.h>
+#include <TraceLoggingProvider.h>
 // clang-format on
 
 #include <openxr/openxr.h>
@@ -21,6 +22,15 @@
 #include <deque>
 
 #include "ApiLayerApi.hpp"
+
+/* PS>
+ * [System.Diagnostics.Tracing.EventSource]::new("XRFrameTools.core_metrics")
+ * dc51862b-a5c6-53e5-4dad-afee57d3e759
+ */
+TRACELOGGING_DEFINE_PROVIDER(
+  gTraceProvider,
+  "XRFrameTools.core_metrics",
+  (0xdc51862b, 0xa5c6, 0x53e5, 0x4d, 0xad, 0xaf, 0xee, 0x57, 0xd3, 0xe7, 0x59));
 
 static auto gConfig = Config::GetForOpenXRAPILayer();
 

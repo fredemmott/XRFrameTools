@@ -3,6 +3,7 @@
 
 // clang-format off
 #include <Windows.h>
+#include <TraceLoggingProvider.h>
 // clang-format on
 
 #include <nvapi.h>
@@ -20,6 +21,15 @@
 #include <span>
 
 #include "ApiLayerApi.hpp"
+
+/* PS>
+ * [System.Diagnostics.Tracing.EventSource]::new("XRFrameTools.nvapi_metrics")
+ * 58a2bcbf-57ab-5ec3-d229-a5d23f055d5a
+ */
+TRACELOGGING_DEFINE_PROVIDER(
+  gTraceProvider,
+  "XRFrameTools.nvapi_metrics",
+  (0x58a2bcbf, 0x57ab, 0x5ec3, 0xd2, 0x29, 0xa5, 0xd2, 0x3f, 0x05, 0x5d, 0x5a));
 
 using GpuPerformanceInfo = FramePerformanceCounters::GpuPerformanceInfo;
 

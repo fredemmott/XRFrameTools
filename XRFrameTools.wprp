@@ -9,7 +9,10 @@
     <EventProvider Id="EventProvider_FredEmmott.OpenXRTracing" Name="0f924f5f-21f0-513d-a2ab-2ede802e0b8f" />
     <EventProvider Id="EventProvider_FredEmmott.OpenXRTracing.Alternate" Name="002f5359-fd69-56b8-a91f-26443c30187d" />
     <EventProvider Id="EventProvider_FredEmmott.XRFrameTools" Name="a6efd5fe-e082-5e08-69da-0a9fcdafda5f" />
+    <EventProvider Id="EventProvider_FredEmmott.XRFrameTools.core_metrics" Name="dc51862b-a5c6-53e5-4dad-afee57d3e759" />
     <EventProvider Id="EventProvider_FredEmmott.XRFrameTools.d3d11_metrics" Name="aa04a9b2-6963-5059-17d9-6e98dbfa3053" />
+    <EventProvider Id="EventProvider_FredEmmott.XRFrameTools.d3d11_overlay" Name="602a04c4-e6cf-5e94-e069-d3a167126f04" />
+    <EventProvider Id="EventProvider_FredEmmott.XRFrameTools.nvapi_metrics" Name="58a2bcbf-57ab-5ec3-d229-a5d23f055d5a" />
 
     <Profile Id="FredEmmott.XRFrameTools.Verbose.File" Name="FredEmmott.XRFrameTools" Description="FredEmmott.XRFrameTools" LoggingMode="File" DetailLevel="Verbose" Default="true">
       <Collectors>
@@ -18,7 +21,10 @@
             <EventProviderId Value="EventProvider_FredEmmott.OpenXRTracing" />
             <EventProviderId Value="EventProvider_FredEmmott.OpenXRTracing.Alternate" />
             <EventProviderId Value="EventProvider_FredEmmott.XRFrameTools" />
+            <EventProviderId Value="EventProvider_FredEmmott.XRFrameTools.core_metrics" />
             <EventProviderId Value="EventProvider_FredEmmott.XRFrameTools.d3d11_metrics" />
+            <EventProviderId Value="EventProvider_FredEmmott.XRFrameTools.d3d11_overlay" />
+            <EventProviderId Value="EventProvider_FredEmmott.XRFrameTools.nvapi_metrics" />
           </EventProviders>
         </EventCollectorId>
       </Collectors>
