@@ -1,8 +1,16 @@
 // Copyright 2024 Fred Emmott <fred@fredemmott.com>
 // SPDX-License-Identifier: MIT
+
+// clang-format off
+#include <Windows.h>
+#include <TraceLoggingProvider.h>
+// clang-format on
+
 #include "D3D11GpuTimer.hpp"
 
 #include "CheckHResult.hpp"
+
+TRACELOGGING_DECLARE_PROVIDER(gTraceProvider);
 
 D3D11GpuTimer::D3D11GpuTimer(ID3D11Device* device) {
   device->GetImmediateContext(mContext.put());
@@ -33,18 +41,37 @@ std::expected<uint64_t, GpuDataError> D3D11GpuTimer::GetMicroseconds() {
         sizeof(disjoint),
         D3D11_ASYNC_GETDATA_DONOTFLUSH);
       ret != S_OK) {
+    TraceLoggingWrite(
+      gTraceProvider,
+      "D3D11GpuTimer/Disjoint-GetData/Failure",
+      TraceLoggingValue(ret, "HRESULT"));
     return std::unexpected {
       (ret == S_FALSE) ? GpuDataError::Pending : GpuDataError::Unusable};
   }
   uint64_t start {};
   uint64_t stop {};
-  if (
-    mContext->GetData(mStartQuery.get(), &start, sizeof(start), 0) != S_OK
-    || mContext->GetData(mStopQuery.get(), &stop, sizeof(stop), 0) != S_OK) {
+
+  const auto startHr
+    = mContext->GetData(mStartQuery.get(), &start, sizeof(start), 0);
+  const auto stopHr
+    = mContext->GetData(mStopQuery.get(), &stop, sizeof(stop), 0);
+  if (startHr != S_OK || stopHr != S_OK) {
+    TraceLoggingWrite(
+      gTraceProvider,
+      "D3D11GpuTimer/Timer-GetData/Failure",
+      TraceLoggingValue(startHr, "StartHRESULT"),
+      TraceLoggingValue(stopHr, "StopHRESULT"));
     return std::unexpected {GpuDataError::Unusable};
   }
 
   if (disjoint.Disjoint || !(disjoint.Frequency && start && stop)) {
+    TraceLoggingWrite(
+      gTraceProvider,
+      "D3D11GpuTimer/Failure",
+      TraceLoggingValue(disjoint.Disjoint, "Disjoint"),
+      TraceLoggingValue(disjoint.Frequency, "Frequency"),
+      TraceLoggingValue(start, "Start"),
+      TraceLoggingValue(stop, "Stop"));
     return std::unexpected {GpuDataError::Unusable};
   }
 

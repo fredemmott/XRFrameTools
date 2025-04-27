@@ -3,6 +3,7 @@
 
 // clang-format off
 #include <Windows.h>
+#include <TraceLoggingProvider.h>
 // clang-format on
 
 #define XR_USE_GRAPHICS_API_D3D11
@@ -26,6 +27,15 @@
 #include "D3D11GpuTimer.hpp"
 #include "FrameMetricsStore.hpp"
 #include "Win32Utils.hpp"
+
+/* PS>
+ * [System.Diagnostics.Tracing.EventSource]::new("XRFrameTools.d3d11_metrics")
+ * aa04a9b2-6963-5059-17d9-6e98dbfa3053
+ */
+TRACELOGGING_DEFINE_PROVIDER(
+  gTraceProvider,
+  "XRFrameTools.d3d11_metrics",
+  (0xaa04a9b2, 0x6963, 0x5059, 0x17, 0xd9, 0x6e, 0x98, 0xdb, 0xfa, 0x30, 0x53));
 
 namespace {
 
@@ -56,8 +66,15 @@ struct D3D11Frame {
 #endif
     mGpuTimer.Stop();
 
-    mAdapter->QueryVideoMemoryInfo(
+    const auto qvmiResult = mAdapter->QueryVideoMemoryInfo(
       0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &mVideoMemoryInfo);
+    if (FAILED(qvmiResult)) {
+      TraceLoggingWrite(
+        gTraceProvider,
+        "QueryVideoMemoryInfo/Failure",
+        TraceLoggingValue(qvmiResult, "HRESULT"),
+        TraceLoggingValue(mDisplayTime, "DisplayTime"));
+    }
   }
 
   void GetVideoMemoryInfo(DXGI_QUERY_VIDEO_MEMORY_INFO& it) {
