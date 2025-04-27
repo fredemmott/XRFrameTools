@@ -32,7 +32,6 @@
 #include "Win32Utils.hpp"
 #include "imgui_impl_win32_headless.hpp"
 
-
 /* PS>
  * [System.Diagnostics.Tracing.EventSource]::new("XRFrameTools.d3d11_overlay")
  * 602a04c4-e6cf-5e94-e069-d3a167126f04
@@ -124,8 +123,24 @@ std::expected<std::tuple<uint32_t, uint32_t>, XrResult> PaintOverlay(
   ID3D11RenderTargetView* rtv,
   XrSession session,
   const XrFrameEndInfo* frameEndInfo) {
-  constexpr FLOAT BackgroundColor[4] {0.5f, 0.5f, 0.5f, 0.6f};
   auto ctx = gContext.get();
+
+  const struct SwapContextState {
+    SwapContextState() = delete;
+    explicit SwapContextState(ID3D11DeviceContext1* ctx) : mContext(ctx) {
+      mContext->SwapDeviceContextState(gContextState.get(), &mOriginalState);
+    }
+    ~SwapContextState() {
+      mContext->SwapDeviceContextState(mOriginalState, nullptr);
+    }
+
+   private:
+    ID3D11DeviceContext1* mContext {nullptr};
+    ID3DDeviceContextState* mOriginalState {nullptr};
+  } SwapContextState {ctx};
+
+  constexpr FLOAT BackgroundColor[4] {0.5f, 0.5f, 0.5f, 0.6f};
+
   ID3D11RenderTargetView* rtvs[] {rtv};
   ctx->OMSetRenderTargets(std::size(rtvs), rtvs, nullptr);
   ctx->ClearRenderTargetView(rtv, BackgroundColor);
