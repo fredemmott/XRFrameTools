@@ -27,7 +27,7 @@ set(
 )
 
 set(VERSION_TWEAK 0 CACHE STRING "Final component of build number")
-project(XRFrameTools VERSION 0.2.2.${VERSION_TWEAK} LANGUAGES CXX)
+project(XRFrameTools VERSION 0.2.3.${VERSION_TWEAK} LANGUAGES CXX)
 set(VERSION_TWEAK_LABEL "local" CACHE STRING "Human-readable label for build number")
 set(
   READABLE_VERSION
