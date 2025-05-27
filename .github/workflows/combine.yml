@@ -24,7 +24,7 @@ jobs:
       - name: Upload bundle
         uses: actions/upload-artifact@v4
         with:
-          name: bundle-v${{steps.bundle.outputs.version}}
+          name: XRFrameTools-v${{steps.bundle.outputs.version}}-bundle
           path: bundle
       - name: Upload debug bundle
         uses: actions/upload-artifact@v4
