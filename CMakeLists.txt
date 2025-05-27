@@ -34,6 +34,8 @@ set(
   "${CMAKE_PROJECT_VERSION_MAJOR}.${CMAKE_PROJECT_VERSION_MINOR}.${CMAKE_PROJECT_VERSION_PATCH}+${VERSION_TWEAK_LABEL}.${CMAKE_PROJECT_VERSION_TWEAK}")
 option(IS_TAGGED_BUILD "Whether or not we're building a tagged version" OFF)
 option(IS_STABLE_RELEASE "Whether or not we're building a stable build" OFF)
+# While the JSON field is documented as a string, it should match the `uint32_t` field of `XrApiLayerProperties`
+math(EXPR LAYER_IMPLEMENTATION_VERSION "(${CMAKE_PROJECT_VERSION_MAJOR} << 24) | (${CMAKE_PROJECT_VERSION_MINOR} << 8) | ${CMAKE_PROJECT_VERSION_PATCH}")
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 math(EXPR BUILD_BITNESS "${CMAKE_SIZEOF_VOID_P} * 8")

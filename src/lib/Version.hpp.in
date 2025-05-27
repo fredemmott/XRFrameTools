@@ -47,4 +47,5 @@ constexpr char SemVer[] = { "@READABLE_VERSION@" };
 constexpr wchar_t SemVerW[] = { L"@READABLE_VERSION@" };
 constexpr bool IsTaggedBuild = detail::CMakeBool("@IS_TAGGED_BUILD@");
 constexpr bool IsStableRelease = detail::CMakeBool("@IS_STABLE_RELEASE@");
+constexpr uint32_t ApiLayerImplementationVersion { @LAYER_IMPLEMENTATION_VERSION@ };
 }

@@ -4,7 +4,7 @@
     "name": "@LAYER@",
     "library_path": ".\\$<TARGET_FILE_NAME:@TARGET@>",
     "api_version": "1.0",
-    "implementation_version": "1",
+    "implementation_version": "@LAYER_IMPLEMENTATION_VERSION@",
     "description": "XRFrameTools: @TARGET@",
     "functions": {
       "xrNegotiateLoaderApiLayerInterface": "xrNegotiateLoaderApiLayerInterface"

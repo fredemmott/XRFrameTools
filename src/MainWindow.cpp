@@ -847,12 +847,14 @@ void MainWindow::AboutSection() {
   }
   ImGui::Text(
     R"---(XRFrameTool v%s
+Layer version %s
 
 Copyright © 2024 Fred Emmott
 
 XRFrameTools is distributed under the MIT license; it contains third-party components, distributed under their own terms.
 )---",
-    Version::SemVer);
+    Version::SemVer,
+    std::to_string(Version::ApiLayerImplementationVersion).c_str());
   if (ImGui::TextLink("License details")) {
     ShellExecuteW(
       GetHWND(),
