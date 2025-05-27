@@ -93,7 +93,8 @@ class MainWindow final : public Window {
   Config mBaseConfig;
   std::filesystem::path mThisExecutable;
 
-  int mCSVFramesPerRow {CSVWriter::DefaultFramesPerRow};
+  int mCSVFramesPerRow {
+    CSVWriter::DefaultFramesPerRow};
   std::vector<BinaryLogReader> mBinaryLogFiles;
   [[nodiscard]] std::vector<BinaryLogReader> PickBinaryLogFiles();
   void ConvertBinaryLogFiles();

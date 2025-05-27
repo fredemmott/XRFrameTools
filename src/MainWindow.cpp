@@ -49,6 +49,14 @@ MainWindow::MainWindow(HINSTANCE instance)
       std::bind_front(&MainWindow::UpdateLiveDataThreadEntry, this)) {
   mThisExecutable
     = std::filesystem::path {wil::QueryFullProcessImageNameW().get()};
+
+  mCSVFramesPerRow = std::clamp<int>(
+    static_cast<int>(
+      wil::reg::try_get_value_dword(
+        HKEY_CURRENT_USER, Config::RootSubkey, L"CSVFramesPerRow")
+        .value_or(CSVWriter::DefaultFramesPerRow)),
+    1,
+    std::numeric_limits<int>::max());
 }
 
 MainWindow::~MainWindow() = default;
@@ -212,9 +220,13 @@ void MainWindow::LogConversionControls() {
   ImGui::LabelText("Application path", "%s", executable.c_str());
 
   if (ImGui::InputInt("Frames per CSV row (averaged)", &mCSVFramesPerRow)) {
-    if (mCSVFramesPerRow < 1) {
-      mCSVFramesPerRow = 1;
-    }
+    mCSVFramesPerRow
+      = std::clamp(mCSVFramesPerRow, 1, std::numeric_limits<int>::max());
+    wil::reg::set_value_dword_nothrow(
+      HKEY_CURRENT_USER,
+      Config::RootSubkey,
+      L"CSVFramesPerRow",
+      mCSVFramesPerRow);
   }
 
   // "SaveAs" Glyph
