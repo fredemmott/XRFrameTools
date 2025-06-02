@@ -26,6 +26,13 @@ struct FrameMetrics {
   DXGI_QUERY_VIDEO_MEMORY_INFO mVideoMemoryInfo {};
 
   uint32_t mGpuPerformanceDecreaseReasons {};
-  uint32_t mGpuLowestPState {};
-  uint32_t mGpuHighestPState {};
+  uint32_t mGpuPStateMin {};
+  uint32_t mGpuPStateMax {};
+
+  uint32_t mGpuGraphicsKHzMin {};
+  uint32_t mGpuGraphicsKHzMax {};
+  uint32_t mGpuMemoryKHzMin {};
+  uint32_t mGpuMemoryKHzMax {};
+  uint32_t mGpuFanRPMMin {};
+  uint32_t mGpuFanRPMMax {};
 };

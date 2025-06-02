@@ -18,6 +18,14 @@ template <>
 void SetIfLarger<LARGE_INTEGER>(LARGE_INTEGER* a, LARGE_INTEGER b) {
   SetIfLarger(&a->QuadPart, b.QuadPart);
 }
+
+template <class T>
+void SetIfSmallerOrTargetIsZero(T* a, T b) {
+  if (*a == 0 || b < *a) {
+    *a = b;
+  }
+}
+
 }// namespace
 
 MetricsAggregator::MetricsAggregator(const PerformanceCounterMath& pc)
@@ -65,7 +73,7 @@ void MetricsAggregator::Push(const FramePerformanceCounters& rawFpc) {
 
   if (++mAccumulator.mFrameCount == 1) {
     acc.mValidDataBits = fpc.mValidDataBits;
-    acc.mGpuLowestPState = fpc.mGpuPerformanceInformation.mPState;
+    acc.mGpuPStateMin = fpc.mGpuPerformanceInformation.mPState;
     // Highest handled by max(), lowest isn't as default is 0
   } else {
     acc.mValidDataBits &= fpc.mValidDataBits;
@@ -96,10 +104,22 @@ void MetricsAggregator::Push(const FramePerformanceCounters& rawFpc) {
 
   acc.mGpuPerformanceDecreaseReasons
     |= fpc.mGpuPerformanceInformation.mDecreaseReasons;
-  acc.mGpuLowestPState
-    = std::min(acc.mGpuLowestPState, fpc.mGpuPerformanceInformation.mPState);
-  acc.mGpuHighestPState
-    = std::max(acc.mGpuHighestPState, fpc.mGpuPerformanceInformation.mPState);
+  acc.mGpuPStateMin
+    = std::min(acc.mGpuPStateMin, fpc.mGpuPerformanceInformation.mPState);
+  acc.mGpuPStateMax
+    = std::max(acc.mGpuPStateMax, fpc.mGpuPerformanceInformation.mPState);
+
+  SetIfSmallerOrTargetIsZero(
+    &acc.mGpuGraphicsKHzMin, fpc.mGpuPerformanceInformation.mGraphicsKHz);
+  SetIfSmallerOrTargetIsZero(
+    &acc.mGpuMemoryKHzMin, fpc.mGpuPerformanceInformation.mMemoryKHz);
+  SetIfSmallerOrTargetIsZero(
+    &acc.mGpuFanRPMMin, fpc.mGpuPerformanceInformation.mFanRPM);
+
+  SetIfLarger(
+    &acc.mGpuGraphicsKHzMax, fpc.mGpuPerformanceInformation.mGraphicsKHz);
+  SetIfLarger(&acc.mGpuMemoryKHzMax, fpc.mGpuPerformanceInformation.mMemoryKHz);
+  SetIfLarger(&acc.mGpuFanRPMMax, fpc.mGpuPerformanceInformation.mFanRPM);
 
   acc.mSincePreviousFrame
     += pcm.ToDuration(mPreviousFrameEndTime, fpc.mEndFrameStop);

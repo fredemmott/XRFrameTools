@@ -130,30 +130,46 @@ ApiLayerApi::LogFrameHookResult LoggingHook(Frame* frame) {
   }
   return ApiLayerApi::LogFrameHookResult::Ready;
 }
-
 }// namespace
 
 PFN_xrEndFrame next_xrEndFrame {nullptr};
+
 XrResult hooked_xrEndFrame(
   XrSession session,
   const XrFrameEndInfo* frameEndInfo) noexcept {
   InstallHook();
-  if (gPhysicalGpuHandle) {
-    NvU32 perfDecrease {};
-    NV_GPU_PERF_PSTATE_ID pstate {};
-    if (
-      NvAPI_GPU_GetPerfDecreaseInfo(gPhysicalGpuHandle.value(), &perfDecrease)
-        == NVAPI_OK
-      && NvAPI_GPU_GetCurrentPstate(gPhysicalGpuHandle.value(), &pstate)
-        == NVAPI_OK) {
-      EnqueueFrameData(
-        frameEndInfo->displayTime,
-        GpuPerformanceInfo {
-          .mDecreaseReasons = perfDecrease,
-          .mPState = static_cast<uint32_t>(pstate),
-        });
-    }
+  if (!gPhysicalGpuHandle) {
+    return next_xrEndFrame(session, frameEndInfo);
   }
+
+  NvU32 perfDecrease {};
+  NvU32 fanRpm {};
+  NV_GPU_PERF_PSTATE_ID pstate {};
+  NV_GPU_CLOCK_FREQUENCIES frequencies {
+    .version = NV_GPU_CLOCK_FREQUENCIES_VER_3,
+  };
+  if (
+    NvAPI_GPU_GetPerfDecreaseInfo(gPhysicalGpuHandle.value(), &perfDecrease)
+      != NVAPI_OK
+    || NvAPI_GPU_GetCurrentPstate(gPhysicalGpuHandle.value(), &pstate)
+      != NVAPI_OK
+    || NvAPI_GPU_GetAllClockFrequencies(
+         gPhysicalGpuHandle.value(), &frequencies)
+      != NVAPI_OK
+    || NvAPI_GPU_GetTachReading(gPhysicalGpuHandle.value(), &fanRpm)) {
+    EnqueueFrameData(
+      frameEndInfo->displayTime,
+      GpuPerformanceInfo {
+        .mDecreaseReasons = perfDecrease,
+        .mPState = static_cast<uint32_t>(pstate),
+        .mGraphicsKHz = static_cast<uint32_t>(
+          frequencies.domain[NVAPI_GPU_PUBLIC_CLOCK_GRAPHICS].frequency),
+        .mMemoryKHz = static_cast<uint32_t>(
+          frequencies.domain[NVAPI_GPU_PUBLIC_CLOCK_MEMORY].frequency),
+        .mFanRPM = fanRpm,
+      });
+  }
+
   return next_xrEndFrame(session, frameEndInfo);
 }
 

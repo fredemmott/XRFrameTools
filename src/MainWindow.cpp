@@ -492,8 +492,8 @@ void MainWindow::PlotNVAPI() {
 
   double maxPState = 0;
   for (auto&& frame: mLiveData.mChartFrames) {
-    if (frame.mGpuHighestPState > maxPState) {
-      maxPState = frame.mGpuHighestPState;
+    if (frame.mGpuPStateMax > maxPState) {
+      maxPState = frame.mGpuPStateMax;
     }
   }
   maxPState = std::clamp<double>(2, maxPState + 1, 16);
@@ -565,14 +565,14 @@ void MainWindow::PlotNVAPI() {
   ImPlot::PlotLineG(
     "Lowest P-State",
     &LiveData::PlotFrame<[](const FrameMetrics& frame) {
-      return frame.mGpuLowestPState;
+      return frame.mGpuPStateMin;
     }>,
     mLiveData.mChartFrames.data(),
     mLiveData.mChartFrames.size());
   ImPlot::PlotLineG(
     "Highest P-State",
     &LiveData::PlotFrame<[](const FrameMetrics& frame) {
-      return frame.mGpuHighestPState;
+      return frame.mGpuPStateMax;
     }>,
     mLiveData.mChartFrames.data(),
     mLiveData.mChartFrames.size());

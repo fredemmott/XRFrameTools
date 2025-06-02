@@ -28,6 +28,8 @@ enum class ColumnUnit {
   Counter,
   Micros,
   Bytes,
+  KHz,
+  RPM,
   Opaque,
   Boolean,
 };
@@ -38,12 +40,20 @@ struct Column {
   static constexpr auto Unit = TUnit;
   static constexpr auto Getter = TGetter;
 
+  static std::string GetHeader()
+    requires(TUnit == ColumnUnit::Micros)
+  {
+    return std::format("{} (µs)", std::string_view {TName});
+  }
+
+  static std::string GetHeader()
+    requires(TUnit == ColumnUnit::KHz)
+  {
+    return std::format("{} (KHz)", std::string_view {TName});
+  }
+
   static std::string GetHeader() {
-    if constexpr (TUnit == ColumnUnit::Micros) {
-      return std::format("{} (µs)", std::string_view {TName});
-    } else {
-      return std::string {std::string_view {TName}};
-    }
+    return std::string {std::string_view {TName}};
   }
 
   static auto GetValue(const FrameMetrics& afm) {
@@ -130,13 +140,31 @@ using Row = std::tuple<
     ColumnUnit::Opaque,
     [](const FrameMetrics& frame) { return HasNVAPI(frame) ? "NVAPI" : ""; }>,
   Column<
+    "GPU Clock Min"_cl,
+    ColumnUnit::KHz,
+    &FrameMetrics::mGpuGraphicsKHzMin>,
+  Column<
+    "GPU Clock Max"_cl,
+    ColumnUnit::KHz,
+    &FrameMetrics::mGpuGraphicsKHzMax>,
+  Column<
+    "GPU VRAM Clock Min"_cl,
+    ColumnUnit::KHz,
+    &FrameMetrics::mGpuMemoryKHzMin>,
+  Column<
+    "GPU VRAM Clock Max"_cl,
+    ColumnUnit::KHz,
+    &FrameMetrics::mGpuMemoryKHzMax>,
+  Column<"GPU Fan RPM Min"_cl, ColumnUnit::RPM, &FrameMetrics::mGpuFanRPMMin>,
+  Column<"GPU Fan RPM Max"_cl, ColumnUnit::RPM, &FrameMetrics::mGpuFanRPMMax>,
+  Column<
     "GPU P-State Min"_cl,
     ColumnUnit::Opaque,
-    &FrameMetrics::mGpuLowestPState>,
+    &FrameMetrics::mGpuPStateMin>,
   Column<
     "GPU P-State Max"_cl,
     ColumnUnit::Opaque,
-    &FrameMetrics::mGpuHighestPState>,
+    &FrameMetrics::mGpuPStateMax>,
   Column<
     "GPU Limit Bits"_cl,
     ColumnUnit::Opaque,

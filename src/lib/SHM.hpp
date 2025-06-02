@@ -22,5 +22,6 @@ struct SHM final {
     return mFrameMetrics.at(index % SHM::MaxFrameCount);
   }
 };
+
 // This can change, just check that 32-bit and 64-bit builds get the same value
-static_assert(sizeof(SHM) == 14368);
+static_assert(sizeof(SHM) == 16416);
