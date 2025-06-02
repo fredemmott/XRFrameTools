@@ -564,16 +564,12 @@ void MainWindow::PlotNVAPI() {
   ImPlot::PushStyleVar(ImPlotStyleVar_LineWeight, ImGui::GetFont()->Scale * 3);
   ImPlot::PlotLineG(
     "Lowest P-State",
-    &LiveData::PlotFrame<[](const FrameMetrics& frame) {
-      return frame.mGpuPStateMin;
-    }>,
+    &LiveData::PlotFrame<&FrameMetrics::mGpuPStateMin>,
     mLiveData.mChartFrames.data(),
     mLiveData.mChartFrames.size());
   ImPlot::PlotLineG(
     "Highest P-State",
-    &LiveData::PlotFrame<[](const FrameMetrics& frame) {
-      return frame.mGpuPStateMax;
-    }>,
+    &LiveData::PlotFrame<&FrameMetrics::mGpuPStateMax>,
     mLiveData.mChartFrames.data(),
     mLiveData.mChartFrames.size());
   ImPlot::PopStyleVar();
@@ -838,8 +834,40 @@ void MainWindow::LiveDataSection() {
 
   this->PlotFramerate(maxMicroseconds);
   this->PlotFrameTimings(maxMicroseconds);
+  this->PlotSystemFrequencies();
   this->PlotVideoMemory();
   this->PlotNVAPI();
+}
+
+void MainWindow::PlotSystemFrequencies() {
+  const auto plot = ImGuiScoped::ImPlot("Frequencies");
+  if (!plot) {
+    return;
+  }
+  ImPlot::SetupAxis(ImAxis_X1);
+  ImPlot::SetupAxis(ImAxis_Y1, "MHz", ImPlotAxisFlags_AutoFit);
+  ImPlot::SetAxes(ImAxis_X1, ImAxis_Y1);
+
+  ImPlot::PlotLineG(
+    "GPU Min",
+    &LiveData::PlotFrame<&FrameMetrics::mGpuGraphicsKHzMin, 1000.0>,
+    mLiveData.mChartFrames.data(),
+    mLiveData.mChartFrames.size());
+  ImPlot::PlotLineG(
+    "GPU Max",
+    &LiveData::PlotFrame<&FrameMetrics::mGpuGraphicsKHzMax, 1000.0>,
+    mLiveData.mChartFrames.data(),
+    mLiveData.mChartFrames.size());
+  ImPlot::PlotLineG(
+    "VRAM Clock Min",
+    &LiveData::PlotFrame<&FrameMetrics::mGpuMemoryKHzMin, 1000.0>,
+    mLiveData.mChartFrames.data(),
+    mLiveData.mChartFrames.size());
+  ImPlot::PlotLineG(
+    "VRAM Clock Max",
+    &LiveData::PlotFrame<&FrameMetrics::mGpuMemoryKHzMax, 1000.0>,
+    mLiveData.mChartFrames.data(),
+    mLiveData.mChartFrames.size());
 }
 
 void MainWindow::AboutSection() {

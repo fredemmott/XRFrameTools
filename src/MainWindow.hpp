@@ -51,12 +51,12 @@ struct LiveData {
 
   ChartFrames mChartFrames {BufferSize};
 
-  template <auto Getter>
+  template <auto Getter, double Scale = 1.0>
   static ImPlotPoint PlotFrame(int idx, void* user_data) {
     const auto& frame = static_cast<LiveData::ChartFrames*>(user_data)->at(idx);
     return PlotPoint {
       idx,
-      std::invoke(Getter, frame),
+      std::invoke(Getter, frame) / Scale,
     };
   }
 
@@ -93,8 +93,7 @@ class MainWindow final : public Window {
   Config mBaseConfig;
   std::filesystem::path mThisExecutable;
 
-  int mCSVFramesPerRow {
-    CSVWriter::DefaultFramesPerRow};
+  int mCSVFramesPerRow {CSVWriter::DefaultFramesPerRow};
   std::vector<BinaryLogReader> mBinaryLogFiles;
   [[nodiscard]] std::vector<BinaryLogReader> PickBinaryLogFiles();
   void ConvertBinaryLogFiles();
@@ -102,6 +101,7 @@ class MainWindow final : public Window {
   void LogConversionControls();
   void LoggingSection();
   void PlotNVAPI();
+  void PlotSystemFrequencies();
   void PlotFramerate(double maxMicroseconds);
   void PlotFrameTimings(double maxMicroseconds);
   void PlotVideoMemory();
