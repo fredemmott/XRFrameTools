@@ -155,8 +155,6 @@ using Row = std::tuple<
     "GPU VRAM Clock Max"_cl,
     ColumnUnit::KHz,
     &FrameMetrics::mGpuMemoryKHzMax>,
-  Column<"GPU Fan RPM Min"_cl, ColumnUnit::RPM, &FrameMetrics::mGpuFanRPMMin>,
-  Column<"GPU Fan RPM Max"_cl, ColumnUnit::RPM, &FrameMetrics::mGpuFanRPMMax>,
   Column<
     "GPU P-State Min"_cl,
     ColumnUnit::Opaque,

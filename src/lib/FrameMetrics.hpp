@@ -33,6 +33,4 @@ struct FrameMetrics {
   uint32_t mGpuGraphicsKHzMax {};
   uint32_t mGpuMemoryKHzMin {};
   uint32_t mGpuMemoryKHzMax {};
-  uint32_t mGpuFanRPMMin {};
-  uint32_t mGpuFanRPMMax {};
 };

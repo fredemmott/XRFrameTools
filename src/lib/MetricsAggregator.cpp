@@ -113,13 +113,10 @@ void MetricsAggregator::Push(const FramePerformanceCounters& rawFpc) {
     &acc.mGpuGraphicsKHzMin, fpc.mGpuPerformanceInformation.mGraphicsKHz);
   SetIfSmallerOrTargetIsZero(
     &acc.mGpuMemoryKHzMin, fpc.mGpuPerformanceInformation.mMemoryKHz);
-  SetIfSmallerOrTargetIsZero(
-    &acc.mGpuFanRPMMin, fpc.mGpuPerformanceInformation.mFanRPM);
 
   SetIfLarger(
     &acc.mGpuGraphicsKHzMax, fpc.mGpuPerformanceInformation.mGraphicsKHz);
   SetIfLarger(&acc.mGpuMemoryKHzMax, fpc.mGpuPerformanceInformation.mMemoryKHz);
-  SetIfLarger(&acc.mGpuFanRPMMax, fpc.mGpuPerformanceInformation.mFanRPM);
 
   acc.mSincePreviousFrame
     += pcm.ToDuration(mPreviousFrameEndTime, fpc.mEndFrameStop);

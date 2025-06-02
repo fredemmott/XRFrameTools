@@ -8,7 +8,7 @@
 // All values are from QueryPerformanceCounters
 struct FramePerformanceCounters {
   // Used for BinLog
-  static constexpr auto Version = "2025-06-02#01";
+  static constexpr auto Version = "2025-06-02#02";
 
   enum class ValidDataBits : uint64_t {
     D3D11 = 1,
@@ -37,10 +37,9 @@ struct FramePerformanceCounters {
     uint32_t mPState {};// NVAPI_GPU_PSTATE_ID
     uint32_t mGraphicsKHz {};// NVAPI_GPU_PUBLIC_CLOCK_GRAPHICS
     uint32_t mMemoryKHz {};// NVAPI_GPU_PUBLIC_CLOCK_MEMORY
-    uint32_t mFanRPM {};// NvApi_GPU_GetTachReading()
   } mGpuPerformanceInformation {};
 };
 
 // Increase this if you add additional members; this assertion is here to make
 // sure the struct is the same size in 32-bit and 64-bit builds
-static_assert(sizeof(FramePerformanceCounters) == 128);
+static_assert(sizeof(FramePerformanceCounters) == 120);

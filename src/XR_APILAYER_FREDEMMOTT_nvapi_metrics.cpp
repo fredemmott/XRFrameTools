@@ -143,20 +143,18 @@ XrResult hooked_xrEndFrame(
   }
 
   NvU32 perfDecrease {};
-  NvU32 fanRpm {};
   NV_GPU_PERF_PSTATE_ID pstate {};
   NV_GPU_CLOCK_FREQUENCIES frequencies {
     .version = NV_GPU_CLOCK_FREQUENCIES_VER_3,
   };
   if (
     NvAPI_GPU_GetPerfDecreaseInfo(gPhysicalGpuHandle.value(), &perfDecrease)
-      != NVAPI_OK
-    || NvAPI_GPU_GetCurrentPstate(gPhysicalGpuHandle.value(), &pstate)
-      != NVAPI_OK
-    || NvAPI_GPU_GetAllClockFrequencies(
+      == NVAPI_OK
+    && NvAPI_GPU_GetCurrentPstate(gPhysicalGpuHandle.value(), &pstate)
+      == NVAPI_OK
+    && NvAPI_GPU_GetAllClockFrequencies(
          gPhysicalGpuHandle.value(), &frequencies)
-      != NVAPI_OK
-    || NvAPI_GPU_GetTachReading(gPhysicalGpuHandle.value(), &fanRpm)) {
+      == NVAPI_OK) {
     EnqueueFrameData(
       frameEndInfo->displayTime,
       GpuPerformanceInfo {
@@ -166,7 +164,6 @@ XrResult hooked_xrEndFrame(
           frequencies.domain[NVAPI_GPU_PUBLIC_CLOCK_GRAPHICS].frequency),
         .mMemoryKHz = static_cast<uint32_t>(
           frequencies.domain[NVAPI_GPU_PUBLIC_CLOCK_MEMORY].frequency),
-        .mFanRPM = fanRpm,
       });
   }
 

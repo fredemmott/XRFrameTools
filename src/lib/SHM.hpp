@@ -24,4 +24,4 @@ struct SHM final {
 };
 
 // This can change, just check that 32-bit and 64-bit builds get the same value
-static_assert(sizeof(SHM) == 16416);
+static_assert(sizeof(SHM) == 15392);
