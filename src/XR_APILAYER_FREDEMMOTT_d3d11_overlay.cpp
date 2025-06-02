@@ -578,7 +578,10 @@ XrResult hooked_xrEndFrame(
     return passthrough();
   }
 
-  PaintOverlay(session, frameEndInfo);
+  const auto overlayDimensions = PaintOverlay(session, frameEndInfo);
+  if (!overlayDimensions.has_value()) {
+    return overlayDimensions.error();
+  }
 
   std::vector<const XrCompositionLayerBaseHeader*> nextLayers;
   nextLayers.reserve(frameEndInfo->layerCount + 1);
