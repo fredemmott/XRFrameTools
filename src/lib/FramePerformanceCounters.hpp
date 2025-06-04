@@ -5,14 +5,23 @@
 #include <Windows.h>
 #include <dxgi1_4.h>
 
-// All values are from QueryPerformanceCounters
+#include <array>
+
 struct FramePerformanceCounters {
   // Used for BinLog
-  static constexpr auto Version = "2025-06-02#02";
+  static constexpr auto Version = "2025-06-04#01";
 
   enum class ValidDataBits : uint64_t {
-    D3D11 = 1,
-    NVAPI = 2,
+    D3D11 = 1 << 0,
+    NVAPI = 1 << 1,
+    NVEnc = 1 << 2,
+  };
+
+  enum class EncoderType : uint64_t {
+    None,
+    H264,
+    HEVC,
+    Unknown,
   };
 
   uint64_t mValidDataBits {};
@@ -20,6 +29,7 @@ struct FramePerformanceCounters {
   // core_metrics - QueryPerformanceCounter()
   uint64_t mXrDisplayTime {};
 
+  // All values are from QueryPerformanceCounters
   LARGE_INTEGER mWaitFrameStart {};
   LARGE_INTEGER mWaitFrameStop {};
   LARGE_INTEGER mBeginFrameStart {};
@@ -33,6 +43,13 @@ struct FramePerformanceCounters {
 
   // Currently only valid if (mValidData & NVAPI)
   struct GpuPerformanceInfo {
+    struct Encoder {
+      uint32_t mAverageFPS {};
+      uint32_t mAverageLatency {};
+    };
+    std::array<Encoder, 4> mEncoderSessions {};
+    uint32_t mEncoderSessionCount {};
+
     uint32_t mDecreaseReasons {};// NVAPI_GPU_PERF_DECREASE bitmask
     uint32_t mPState {};// NVAPI_GPU_PSTATE_ID
     uint32_t mGraphicsKHz {};// NVAPI_GPU_PUBLIC_CLOCK_GRAPHICS
@@ -42,4 +59,4 @@ struct FramePerformanceCounters {
 
 // Increase this if you add additional members; this assertion is here to make
 // sure the struct is the same size in 32-bit and 64-bit builds
-static_assert(sizeof(FramePerformanceCounters) == 120);
+static_assert(sizeof(FramePerformanceCounters) == 160);

@@ -126,6 +126,10 @@ ApiLayerApi::LogFrameHookResult LoggingHook(Frame* frame) {
     frame->mGpuPerformanceInformation = it->mGpuPerformanceInfo;
     frame->mValidDataBits
       |= static_cast<uint64_t>(FramePerformanceCounters::ValidDataBits::NVAPI);
+    if (it->mGpuPerformanceInfo.mEncoderSessionCount > 0) {
+      frame->mValidDataBits |= static_cast<uint64_t>(
+        FramePerformanceCounters::ValidDataBits::NVEnc);
+    }
     gFrames.erase(it);
   }
   return ApiLayerApi::LogFrameHookResult::Ready;
@@ -145,8 +149,9 @@ XrResult hooked_xrEndFrame(
   NvU32 perfDecrease {};
   NV_GPU_PERF_PSTATE_ID pstate {};
   NV_GPU_CLOCK_FREQUENCIES frequencies {
-    .version = NV_GPU_CLOCK_FREQUENCIES_VER_3,
+    .version = NV_GPU_CLOCK_FREQUENCIES_VER,
   };
+  GpuPerformanceInfo ret {};
   if (
     NvAPI_GPU_GetPerfDecreaseInfo(gPhysicalGpuHandle.value(), &perfDecrease)
       == NVAPI_OK
@@ -155,17 +160,41 @@ XrResult hooked_xrEndFrame(
     && NvAPI_GPU_GetAllClockFrequencies(
          gPhysicalGpuHandle.value(), &frequencies)
       == NVAPI_OK) {
-    EnqueueFrameData(
-      frameEndInfo->displayTime,
-      GpuPerformanceInfo {
-        .mDecreaseReasons = perfDecrease,
-        .mPState = static_cast<uint32_t>(pstate),
-        .mGraphicsKHz = static_cast<uint32_t>(
-          frequencies.domain[NVAPI_GPU_PUBLIC_CLOCK_GRAPHICS].frequency),
-        .mMemoryKHz = static_cast<uint32_t>(
-          frequencies.domain[NVAPI_GPU_PUBLIC_CLOCK_MEMORY].frequency),
-      });
+    ret = {
+      .mDecreaseReasons = perfDecrease,
+      .mPState = static_cast<uint32_t>(pstate),
+      .mGraphicsKHz = static_cast<uint32_t>(
+        frequencies.domain[NVAPI_GPU_PUBLIC_CLOCK_GRAPHICS].frequency),
+      .mMemoryKHz = static_cast<uint32_t>(
+        frequencies.domain[NVAPI_GPU_PUBLIC_CLOCK_MEMORY].frequency),
+    };
   }
+
+  std::array<
+    NV_ENCODER_PER_SESSION_INFO_V1,
+    NV_ENCODER_SESSION_INFO_MAX_ENTRIES_V1>
+    encoderSessions {};
+  NV_ENCODER_SESSIONS_INFO encoderInfo {
+    .version = NV_ENCODER_SESSIONS_INFO_VER,
+    .pSessionInfo = encoderSessions.data(),
+  };
+  if (
+    NvAPI_GPU_GetEncoderSessionsInfo(gPhysicalGpuHandle.value(), &encoderInfo)
+    == NVAPI_OK) {
+    ret.mEncoderSessionCount = encoderInfo.sessionsCount;
+    const auto sessionCount = std::min(
+      encoderInfo.sessionsCount,
+      static_cast<uint32_t>(ret.mEncoderSessions.size()));
+    for (uint32_t i = 0; i < sessionCount; ++i) {
+      const auto& it = encoderSessions.at(i);
+      ret.mEncoderSessions.at(i) = {
+        .mAverageFPS = it.averageEncodeFps,
+        .mAverageLatency = it.averageEncodeLatency,
+      };
+    }
+  }
+
+  EnqueueFrameData(frameEndInfo->displayTime, ret);
 
   return next_xrEndFrame(session, frameEndInfo);
 }

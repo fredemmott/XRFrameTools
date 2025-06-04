@@ -8,7 +8,7 @@ endif()
 ExternalProject_Add(
   nvapi-ep
   GIT_REPOSITORY "https://github.com/NVIDIA/nvapi.git"
-  GIT_TAG 973d7e548ef2ed4c3f72e9065bba25999496dfac # R565
+  GIT_TAG 7cb76fce2f52de818b3da497af646af1ec16ce27 # R575
   CONFIGURE_COMMAND ""
   BUILD_COMMAND ""
   INSTALL_COMMAND ""
