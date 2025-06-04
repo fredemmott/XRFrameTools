@@ -33,7 +33,8 @@ MetricsAggregator::MetricsAggregator(const PerformanceCounterMath& pc)
 }
 
 void MetricsAggregator::Push(const FramePerformanceCounters& rawFpc) {
-  if (!rawFpc.mBeginFrameStart.QuadPart) {
+  const auto& rawCore = rawFpc.mCore;
+  if (!rawCore.mBeginFrameStart.QuadPart) {
     // We couldn't match the predicted display time in xrEndFrame,
     // so all core stats are bogus
     //
@@ -41,13 +42,13 @@ void MetricsAggregator::Push(const FramePerformanceCounters& rawFpc) {
     // in a layer closer to the game
     return;
   }
-  if (rawFpc.mEndFrameStop.QuadPart && !mPreviousFrameEndTime.QuadPart) {
+  if (rawCore.mEndFrameStop.QuadPart && !mPreviousFrameEndTime.QuadPart) {
     // While the frame is overall valid, without an interval (and FPS)
     // we can't draw useful conclusions from it
-    mPreviousFrameEndTime = rawFpc.mEndFrameStop;
+    mPreviousFrameEndTime = rawCore.mEndFrameStop;
     return;
   }
-  if (rawFpc.mEndFrameStop.QuadPart < mPreviousFrameEndTime.QuadPart) {
+  if (rawCore.mEndFrameStop.QuadPart < mPreviousFrameEndTime.QuadPart) {
     mPreviousFrameEndTime = {};
     mAccumulator = {};
     mHavePartialData = false;
@@ -63,13 +64,14 @@ void MetricsAggregator::Push(const FramePerformanceCounters& rawFpc) {
   //
   // Actual time on the frame needs in-engine metrics and/or profiling tools
   auto fpc = rawFpc;
-  SetIfLarger(&fpc.mWaitFrameStart, mPreviousFrameEndTime);
-  SetIfLarger(&fpc.mWaitFrameStop, mPreviousFrameEndTime);
-  SetIfLarger(&fpc.mBeginFrameStart, mPreviousFrameEndTime);
-  SetIfLarger(&fpc.mBeginFrameStop, mPreviousFrameEndTime);
+  auto& core = fpc.mCore;
+  SetIfLarger(&core.mWaitFrameStart, mPreviousFrameEndTime);
+  SetIfLarger(&core.mWaitFrameStop, mPreviousFrameEndTime);
+  SetIfLarger(&core.mBeginFrameStart, mPreviousFrameEndTime);
+  SetIfLarger(&core.mBeginFrameStop, mPreviousFrameEndTime);
 
   auto& acc = mAccumulator;
-  SetIfLarger(&acc.mLastXrDisplayTime, fpc.mXrDisplayTime);
+  SetIfLarger(&acc.mLastXrDisplayTime, core.mXrDisplayTime);
 
   if (++mAccumulator.mFrameCount == 1) {
     acc.mValidDataBits = fpc.mValidDataBits;
@@ -81,14 +83,15 @@ void MetricsAggregator::Push(const FramePerformanceCounters& rawFpc) {
 
   const auto& pcm = mPerformanceCounterMath;
 
-  acc.mWaitFrameCpu += pcm.ToDuration(fpc.mWaitFrameStart, fpc.mWaitFrameStop);
-  acc.mRenderCpu += pcm.ToDuration(fpc.mBeginFrameStop, fpc.mEndFrameStart);
+  acc.mWaitFrameCpu
+    += pcm.ToDuration(core.mWaitFrameStart, core.mWaitFrameStop);
+  acc.mRenderCpu += pcm.ToDuration(core.mBeginFrameStop, core.mEndFrameStart);
   acc.mBeginFrameCpu
-    += pcm.ToDuration(fpc.mBeginFrameStart, fpc.mBeginFrameStop);
-  acc.mEndFrameCpu = pcm.ToDuration(fpc.mEndFrameStart, fpc.mEndFrameStop);
+    += pcm.ToDuration(core.mBeginFrameStart, core.mBeginFrameStop);
+  acc.mEndFrameCpu = pcm.ToDuration(core.mEndFrameStart, core.mEndFrameStop);
 
-  acc.mAppCpu += pcm.ToDuration(mPreviousFrameEndTime, fpc.mWaitFrameStart)
-    + pcm.ToDuration(fpc.mWaitFrameStop, fpc.mBeginFrameStart);
+  acc.mAppCpu += pcm.ToDuration(mPreviousFrameEndTime, core.mWaitFrameStart)
+    + pcm.ToDuration(core.mWaitFrameStop, core.mBeginFrameStart);
 
   acc.mRenderGpu += std::chrono::microseconds(fpc.mRenderGpu);
 
@@ -119,8 +122,8 @@ void MetricsAggregator::Push(const FramePerformanceCounters& rawFpc) {
   SetIfLarger(&acc.mGpuMemoryKHzMax, fpc.mGpuPerformanceInformation.mMemoryKHz);
 
   acc.mSincePreviousFrame
-    += pcm.ToDuration(mPreviousFrameEndTime, fpc.mEndFrameStop);
-  mPreviousFrameEndTime = fpc.mEndFrameStop;
+    += pcm.ToDuration(mPreviousFrameEndTime, core.mEndFrameStop);
+  mPreviousFrameEndTime = core.mEndFrameStop;
 }
 
 std::optional<FrameMetrics> MetricsAggregator::Flush() {

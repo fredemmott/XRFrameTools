@@ -26,16 +26,17 @@ struct FramePerformanceCounters {
 
   uint64_t mValidDataBits {};
 
-  // core_metrics - QueryPerformanceCounter()
-  uint64_t mXrDisplayTime {};
+  struct Core {
+    uint64_t mXrDisplayTime {};
 
-  // All values are from QueryPerformanceCounters
-  LARGE_INTEGER mWaitFrameStart {};
-  LARGE_INTEGER mWaitFrameStop {};
-  LARGE_INTEGER mBeginFrameStart {};
-  LARGE_INTEGER mBeginFrameStop {};
-  LARGE_INTEGER mEndFrameStart {};
-  LARGE_INTEGER mEndFrameStop {};
+    // All values are from QueryPerformanceCounters
+    LARGE_INTEGER mWaitFrameStart {};
+    LARGE_INTEGER mWaitFrameStop {};
+    LARGE_INTEGER mBeginFrameStart {};
+    LARGE_INTEGER mBeginFrameStop {};
+    LARGE_INTEGER mEndFrameStart {};
+    LARGE_INTEGER mEndFrameStop {};
+  } mCore;
 
   // d3d11_metrics
   uint64_t mRenderGpu {};// microseconds

@@ -232,8 +232,8 @@ std::expected<std::tuple<uint32_t, uint32_t>, XrResult> PaintOverlay(
     int64_t worst = 0;
     int count = 0;
     for (uint64_t i = min; i <= max; ++i) {
-      const auto time
-        = shm.mFrameMetrics.at(i % SHM::MaxFrameCount).mEndFrameStop.QuadPart;
+      const auto time = shm.mFrameMetrics.at(i % SHM::MaxFrameCount)
+                          .mCore.mEndFrameStop.QuadPart;
       if (!previous) {
         previous = time;
         continue;

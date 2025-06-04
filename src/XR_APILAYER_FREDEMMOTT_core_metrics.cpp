@@ -112,16 +112,17 @@ XrResult hooked_xrWaitFrame(
   const XrFrameWaitInfo* frameWaitInfo,
   XrFrameState* frameState) noexcept {
   auto& frame = gFrameMetrics.GetForWaitFrame();
-  QueryPerformanceCounter(&frame.mWaitFrameStart);
+  auto& core = frame.mCore;
+  QueryPerformanceCounter(&core.mWaitFrameStart);
   const auto ret = next_xrWaitFrame(session, frameWaitInfo, frameState);
-  QueryPerformanceCounter(&frame.mWaitFrameStop);
+  QueryPerformanceCounter(&core.mWaitFrameStop);
 
   if (XR_FAILED(ret)) [[unlikely]] {
     frame.Reset();
     return ret;
   }
 
-  frame.mXrDisplayTime = frameState->predictedDisplayTime;
+  core.mXrDisplayTime = frameState->predictedDisplayTime;
   frame.mCanBegin.store(true);
   return ret;
 }
@@ -133,10 +134,11 @@ XrResult hooked_xrBeginFrame(
   FlushMetrics();
 
   auto& frame = gFrameMetrics.GetForBeginFrame();
+  auto& core = frame.mCore;
 
-  QueryPerformanceCounter(&frame.mBeginFrameStart);
+  QueryPerformanceCounter(&core.mBeginFrameStart);
   const auto ret = next_xrBeginFrame(session, frameBeginInfo);
-  QueryPerformanceCounter(&frame.mBeginFrameStop);
+  QueryPerformanceCounter(&core.mBeginFrameStop);
 
   if (XR_FAILED(ret)) [[unlikely]] {
     frame.Reset();
@@ -150,9 +152,11 @@ XrResult hooked_xrEndFrame(
   XrSession session,
   const XrFrameEndInfo* frameEndInfo) noexcept {
   auto& frame = gFrameMetrics.GetForEndFrame(frameEndInfo->displayTime);
-  QueryPerformanceCounter(&frame.mEndFrameStart);
+  auto& core = frame.mCore;
+
+  QueryPerformanceCounter(&core.mEndFrameStart);
   const auto ret = next_xrEndFrame(session, frameEndInfo);
-  QueryPerformanceCounter(&frame.mEndFrameStop);
+  QueryPerformanceCounter(&core.mEndFrameStop);
 
   if (XR_SUCCEEDED(ret)) [[likely]] {
     std::unique_lock lock(gLogQueueMutex);

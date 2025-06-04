@@ -918,7 +918,7 @@ void MainWindow::UpdateLiveData() {
     }
     for (auto& i = mLiveData.mSHMFrameIndex; i < mSHM->mFrameCount; ++i) {
       const auto& frame = mSHM->GetFramePerformanceCounters(i);
-      mLiveData.mLatestMetricsAt = frame.mEndFrameStop;
+      mLiveData.mLatestMetricsAt = frame.mCore.mEndFrameStop;
       mLiveData.mAggregator.Push(frame);
     }
   }

@@ -259,10 +259,11 @@ CSVWriter::Write(BinaryLogReader reader, HANDLE out, size_t framesPerRow) {
   const auto tz = std::chrono::current_zone();
 
   while (const auto frame = reader.GetNextFrame()) {
+    const auto& core = frame->mCore;
     if (!firstFrameTime) {
-      firstFrameTime = frame->mEndFrameStop;
+      firstFrameTime = core.mEndFrameStop;
     }
-    lastFrameTime = frame->mEndFrameStop;
+    lastFrameTime = core.mEndFrameStop;
 
     acc.Push(*frame);
     if (++frameCount % framesPerRow != 0) {
@@ -273,13 +274,13 @@ CSVWriter::Write(BinaryLogReader reader, HANDLE out, size_t framesPerRow) {
       continue;
     };
 
-    const auto utc = ToUTC(frame->mEndFrameStop);
+    const auto utc = ToUTC(core.mEndFrameStop);
     const auto localTime = std::chrono::zoned_time(tz, utc);
 
     win32::println(
       out,
       R"({},"{:%FT%T}","{:%FT%T}",{})",
-      pcm.ToDuration(*firstFrameTime, frame->mEndFrameStop).count(),
+      pcm.ToDuration(*firstFrameTime, core.mEndFrameStop).count(),
       utc,
       localTime,
       GetRow(*row));

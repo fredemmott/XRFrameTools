@@ -121,7 +121,7 @@ void EnqueueFrameData(uint64_t displayTime, const GpuPerformanceInfo& data) {
 ApiLayerApi::LogFrameHookResult LoggingHook(Frame* frame) {
   std::unique_lock lock(gFramesMutex);
   auto it = std::ranges::find(
-    gFrames, frame->mXrDisplayTime, &FrameData::mDisplayTime);
+    gFrames, frame->mCore.mXrDisplayTime, &FrameData::mDisplayTime);
   if (it != gFrames.end()) {
     frame->mGpuPerformanceInformation = it->mGpuPerformanceInfo;
     frame->mValidDataBits
