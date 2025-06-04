@@ -104,10 +104,10 @@ BinaryLogReader::GetNextFrame() noexcept {
     ReadFailed,
     ReadPartiallyFailed,
   };
+  using enum ErrorKind;
 
   const auto readPacket
     = [&]<class T>(const Type kind, T* dest) -> std::expected<void, ErrorKind> {
-    using enum ErrorKind;
     if (header.mType != kind) {
       return std::unexpected {WrongKind};
     }
