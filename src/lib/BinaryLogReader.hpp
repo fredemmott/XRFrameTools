@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <variant>
 
+#include "BinaryLog.hpp"
 #include "FramePerformanceCounters.hpp"
 #include "PerformanceCounterMath.hpp"
 
@@ -85,6 +86,7 @@ class BinaryLogReader {
   std::filesystem::path mExecutable;
   PerformanceCounterMath mPerformanceCounterMath;
   ClockCalibration mClockCalibration {};
+  BinaryLog::PacketHeader mNextPacketHeader {};
 
   BinaryLogReader(
     const std::filesystem::path& path,

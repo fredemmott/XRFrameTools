@@ -102,7 +102,7 @@ void BinaryLogWriter::OpenFile() {
   WriteFile(
     mFile.get(), textHeader.data(), textHeader.size(), nullptr, nullptr);
 
-  const auto binaryHeader = BinaryLog::BinaryHeader::Now();
+  const auto binaryHeader = BinaryLog::FileHeader::Now();
   WriteFile(mFile.get(), &binaryHeader, sizeof(binaryHeader), nullptr, nullptr);
 }
 
@@ -146,29 +146,51 @@ void BinaryLogWriter::Run(std::stop_token tok) {
     const auto markConsumed
       = wil::scope_exit([this, produced]() { mConsumed = produced; });
 
-    // WriteFile is cached - for now we're trusting that
-    if (firstIndex <= lastIndex) {
-      // Contiguous range of the ring buffer
-      const auto& first = mRingBuffer.at(firstIndex);
-      const auto count = (lastIndex - firstIndex) + 1;
-      WriteFile(mFile.get(), &first, entrySize * count, nullptr, nullptr);
+    using FPC = FramePerformanceCounters;
+
+    static char buf[sizeof(FPC)];
+    size_t offset {0};
+    const auto appendBlob = [buf = &buf, &offset]<class T>(const T& data) {
+      memcpy_s(&(*buf)[offset], sizeof(*buf) - offset, &data, sizeof(T));
+      offset += sizeof(data);
+    };
+
+    for (uint64_t i = mConsumed; i < produced; ++i) {
+      const auto& it = mRingBuffer.at(i % RingBufferSize);
+      using PH = BinaryLog::PacketHeader;
+      using PT = PH::PacketType;
+
+      const auto appendPacket
+        = [appendBlob, activeBits = it.mValidDataBits]<class T>(
+            const PT kind,
+            const T& payload,
+            const FPC::ValidDataBits neededBits = {}) {
+            const auto neededBitmask = std::to_underlying(neededBits);
+            if ((activeBits & neededBitmask) != neededBitmask) {
+              return;
+            }
+
+            appendBlob(PH {kind, sizeof(T)});
+            appendBlob(payload);
+          };
+
+      appendPacket(PT::Core, it.mCore);
+      appendPacket(PT::GpuTime, it.mRenderGpu, FPC::ValidDataBits::GpuTime);
+      appendPacket(PT::VRAM, it.mVideoMemoryInfo, FPC::ValidDataBits::VRAM);
+      appendPacket(
+        PT::NVAPI, it.mGpuPerformanceInformation, FPC::ValidDataBits::NVAPI);
+
+      if (it.mValidDataBits & std::to_underlying(FPC::ValidDataBits::NVEnc)) {
+        for (int j = 0; j < it.mEncoders.mSessionCount; ++j) {
+          appendPacket(PT::NVEncSession, it.mEncoders.mSessions.at(i));
+        }
+      }
+    }
+
+    if (offset == 0) {
       continue;
     }
 
-    // Write from firstIndex to the end of the ring buffer
-    WriteFile(
-      mFile.get(),
-      &mRingBuffer.at(firstIndex),
-      entrySize * (mRingBuffer.size() - firstIndex),
-      nullptr,
-      nullptr);
-
-    // Write from start of the ringBuffer to lastIndex
-    WriteFile(
-      mFile.get(),
-      &mRingBuffer.front(),
-      entrySize * (lastIndex + 1),
-      nullptr,
-      nullptr);
+    WriteFile(mFile.get(), buf, static_cast<DWORD>(offset), nullptr, nullptr);
   }
 }

@@ -5,6 +5,8 @@
 
 #include <wil/filesystem.h>
 
+#include <magic_enum.hpp>
+
 #include "BinaryLog.hpp"
 #include "Win32Utils.hpp"
 
@@ -72,16 +74,115 @@ BinaryLogReader::GetNextFrame() noexcept {
   if (!mFile) {
     return std::nullopt;
   }
-  FramePerformanceCounters fpc;
-  DWORD bytesRead {};
-  if (!ReadFile(mFile.get(), &fpc, sizeof(fpc), &bytesRead, 0)) {
-    return std::nullopt;
+
+  auto& header = mNextPacketHeader;
+  using Type = BinaryLog::PacketHeader::PacketType;
+  if (header.mType == Type::Invalid) {
+    DWORD bytesRead {};
+
+    if (!ReadFile(
+          mFile.get(),
+          &header,
+          sizeof(BinaryLog::PacketHeader),
+          &bytesRead,
+          nullptr)) {
+      return std::nullopt;
+    }
+    if (bytesRead != sizeof(BinaryLog::PacketHeader)) {
+      return std::nullopt;
+    }
   }
-  if (bytesRead != sizeof(fpc)) {
+
+  if (header.mType != Type::Core) {
+    dprint("Unexpected packet type {}", std::to_underlying(header.mType));
     return std::nullopt;
   }
 
-  return fpc;
+  enum class ErrorKind {
+    WrongKind,
+    WrongSize,
+    ReadFailed,
+    ReadPartiallyFailed,
+  };
+
+  const auto readPacket
+    = [&]<class T>(const Type kind, T* dest) -> std::expected<void, ErrorKind> {
+    using enum ErrorKind;
+    if (header.mType != kind) {
+      return std::unexpected {WrongKind};
+    }
+    if (header.mSize != sizeof(T)) {
+      return std::unexpected {WrongSize};
+    }
+
+    DWORD bytesRead {};
+    if (!ReadFile(mFile.get(), dest, sizeof(T), &bytesRead, 0)) {
+      return std::unexpected {ReadFailed};
+    }
+
+    if (bytesRead != header.mSize) {
+      return std::unexpected {ReadPartiallyFailed};
+    }
+    return {};
+  };
+
+  FramePerformanceCounters fpc;
+  if (const auto it = readPacket(Type::Core, &fpc.mCore); !it.has_value()) {
+    dprint(
+      "Failed to read `core` packet: {}", magic_enum::enum_name(it.error()));
+    return std::nullopt;
+  }
+
+  while (true) {
+    header = {};
+    DWORD bytesRead {};
+    if (!ReadFile(
+          mFile.get(),
+          &header,
+          sizeof(BinaryLog::PacketHeader),
+          &bytesRead,
+          nullptr)) {
+      return fpc;
+    }
+    if (bytesRead != sizeof(BinaryLog::PacketHeader)) {
+      return fpc;
+    }
+
+    switch (header.mType) {
+      case Type::Invalid:
+        dprint("Binary log contains packet with 'Invalid' type");
+        return fpc;
+      case Type::Core:
+        return fpc;// next frame
+      case Type::GpuTime:
+        if (!readPacket(Type::GpuTime, &fpc.mRenderGpu)) {
+          return fpc;
+        }
+        fpc.mValidDataBits |= FramePerformanceCounters::ValidDataBits::GpuTime;
+        break;
+      case Type::VRAM:
+        if (!readPacket(Type::VRAM, &fpc.mVideoMemoryInfo)) {
+          return fpc;
+        }
+        fpc.mValidDataBits |= FramePerformanceCounters::ValidDataBits::VRAM;
+        break;
+      case Type::NVAPI:
+        if (!readPacket(Type::NVAPI, &fpc.mGpuPerformanceInformation)) {
+          return fpc;
+        }
+        fpc.mValidDataBits |= FramePerformanceCounters::ValidDataBits::NVAPI;
+        break;
+      case Type::NVEncSession: {
+        const auto i = fpc.mEncoders.mSessionCount++;
+        if (!readPacket(Type::NVEncSession, &fpc.mEncoders.mSessions[i])) {
+          --fpc.mEncoders.mSessionCount;
+          return fpc;
+        }
+        fpc.mValidDataBits |= FramePerformanceCounters::ValidDataBits::NVEnc;
+        break;
+      }
+    }
+  }
 }
 
 std::filesystem::path BinaryLogReader::GetExecutablePath() const noexcept {
@@ -134,23 +235,23 @@ BinaryLogReader::Create(const std::filesystem::path& path) {
     return std::unexpected {OpenError::UnsupportedCompression(compression)};
   }
 
-  using BinaryHeader = BinaryLog::BinaryHeader;
-  char binaryHeaderData[sizeof(BinaryHeader)] {};
+  using FileHeader = BinaryLog::FileHeader;
+  char binaryHeaderData[sizeof(FileHeader)] {};
   DWORD bytesRead {};
   if (!ReadFile(
         file.get(),
         &binaryHeaderData,
-        sizeof(BinaryHeader),
+        sizeof(FileHeader),
         &bytesRead,
         nullptr)) {
     return std::unexpected {OpenError::BadBinaryHeader()};
   }
-  if (bytesRead != sizeof(BinaryHeader)) {
+  if (bytesRead != sizeof(FileHeader)) {
     return std::unexpected {OpenError::BadBinaryHeader()};
   }
 
   const auto binaryHeader
-    = BinaryHeader::FromData(binaryHeaderData, sizeof(BinaryHeader));
+    = FileHeader::FromData(binaryHeaderData, sizeof(FileHeader));
   if (!(binaryHeader.mMicrosecondsSinceEpoch
         && binaryHeader.mQueryPerformanceFrequency.QuadPart
         && binaryHeader.mQueryPerformanceCounter.QuadPart)) {

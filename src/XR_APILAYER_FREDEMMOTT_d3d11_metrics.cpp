@@ -202,7 +202,8 @@ static ApiLayerApi::LogFrameHookResult LoggingHook(Frame* frame) {
     it->GetVideoMemoryInfo(frame->mVideoMemoryInfo);
 
     frame->mValidDataBits
-      |= std::to_underlying(FramePerformanceCounters::ValidDataBits::D3D11);
+      |= std::to_underlying(FramePerformanceCounters::ValidDataBits::GpuTime)
+      | std::to_underlying(FramePerformanceCounters::ValidDataBits::VRAM);
     return Result::Ready;
   }
   switch (timer.error()) {

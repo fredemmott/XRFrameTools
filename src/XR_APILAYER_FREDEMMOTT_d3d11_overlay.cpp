@@ -261,8 +261,7 @@ std::expected<std::tuple<uint32_t, uint32_t>, XrResult> PaintOverlay(
 
     auto& latestFrame = shm.mFrameMetrics.at(max % SHM::MaxFrameCount);
     if ((latestFrame.mValidDataBits
-         & std::to_underlying(
-           FramePerformanceCounters::ValidDataBits::D3D11))) {
+         & std::to_underlying(FramePerformanceCounters::ValidDataBits::VRAM))) {
       ImGui::Text(
         "VRAM: %llu MB / %llu MB",
         latestFrame.mVideoMemoryInfo.CurrentUsage / 1024 / 1024,
