@@ -183,7 +183,7 @@ XrResult hooked_xrEndFrame(
     == NVAPI_OK) {
     ret.mEncoderSessionCount = encoderInfo.sessionsCount;
     const auto sessionCount = std::min(
-      encoderInfo.sessionsCount,
+      static_cast<uint32_t>(encoderInfo.sessionsCount),
       static_cast<uint32_t>(ret.mEncoderSessions.size()));
     for (uint32_t i = 0; i < sessionCount; ++i) {
       const auto& it = encoderSessions.at(i);
