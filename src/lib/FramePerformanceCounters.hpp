@@ -47,6 +47,7 @@ struct FramePerformanceCounters {
   struct EncoderInfo {
     struct Session {
       uint32_t mAverageFPS {};
+      uint32_t mAverageLatency {};// microseconds
       uint32_t mProcessID {};
       uint32_t mReserved {/* padding for 32-bit builds */};
     };
