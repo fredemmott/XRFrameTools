@@ -158,11 +158,11 @@ const auto BaseColumns = std::array {
     &DXGI_QUERY_VIDEO_MEMORY_INFO::CurrentUsage,
   },
   Column {
-    "VRAM Current Reserveration",
+    "VRAM Current Reservation",
     &DXGI_QUERY_VIDEO_MEMORY_INFO::CurrentReservation,
   },
   Column {
-    "VRAM Available for Reserveration",
+    "VRAM Available for Reservation",
     &DXGI_QUERY_VIDEO_MEMORY_INFO::AvailableForReservation,
   },
   Column {
