@@ -22,7 +22,6 @@ auto ECFromWin32(DWORD value) {
 
 enum class ColumnUnit {
   Counter,
-  Millis,
   Micros,
   Bytes,
   KHz,
@@ -348,7 +347,7 @@ CSVWriter::Write(BinaryLogReader reader, HANDLE out, size_t framesPerRow) {
           },
           Column {
             std::format("NVEnc[{}] Latency", i),
-            ColumnUnit::Counter,
+            ColumnUnit::Micros,
             [i](const FrameMetrics& fm) {
               return fm.mEncoders.mSessions.at(i).mAverageLatency;
             },

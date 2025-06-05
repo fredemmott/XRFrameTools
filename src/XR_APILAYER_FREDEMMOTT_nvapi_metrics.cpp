@@ -192,6 +192,10 @@ XrResult hooked_xrEndFrame(
       static_cast<uint32_t>(retEncoder.mSessions.size()));
     for (uint32_t i = 0; i < sessionCount; ++i) {
       const auto& it = encoderSessions.at(i);
+      // As of 2025-06-05, the NvAPI header says that `averageEncodeLatency`
+      // is milliseconds, but it's actually microseconds
+      //
+      // https://github.com/NVIDIA/nvapi/issues/18
       retEncoder.mSessions.at(i) = {
         .mAverageFPS = it.averageEncodeFps,
         .mAverageLatency = it.averageEncodeLatency,
