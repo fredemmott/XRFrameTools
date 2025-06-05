@@ -32,5 +32,6 @@ class MetricsAggregator final {
 
   FrameMetrics mAccumulator {};
   LARGE_INTEGER mPreviousFrameEndTime {};
+  LARGE_INTEGER mFirstFrameEndTime {};
   bool mHavePartialData = false;
 };

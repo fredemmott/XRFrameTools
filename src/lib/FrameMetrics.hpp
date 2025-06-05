@@ -9,7 +9,9 @@
 struct FrameMetrics {
   uint16_t mFrameCount {};
   std::chrono::microseconds mSincePreviousFrame {};
+  std::chrono::microseconds mSinceFirstFrame {};
   uint64_t mLastXrDisplayTime {};
+  LARGE_INTEGER mLastEndFrameStop {};
 
   uint64_t mValidDataBits {};
 

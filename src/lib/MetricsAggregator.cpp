@@ -48,6 +48,9 @@ void MetricsAggregator::Push(const FramePerformanceCounters& rawFpc) {
     mPreviousFrameEndTime = rawCore.mEndFrameStop;
     return;
   }
+  if (rawCore.mEndFrameStop.QuadPart && !mFirstFrameEndTime.QuadPart) {
+    mFirstFrameEndTime = rawCore.mEndFrameStop;
+  }
   if (rawCore.mEndFrameStop.QuadPart < mPreviousFrameEndTime.QuadPart) {
     mPreviousFrameEndTime = {};
     mAccumulator = {};
@@ -72,6 +75,7 @@ void MetricsAggregator::Push(const FramePerformanceCounters& rawFpc) {
 
   auto& acc = mAccumulator;
   SetIfLarger(&acc.mLastXrDisplayTime, core.mXrDisplayTime);
+  SetIfLarger(&acc.mLastEndFrameStop, core.mEndFrameStop);
 
   if (++mAccumulator.mFrameCount == 1) {
     acc.mValidDataBits = fpc.mValidDataBits;
@@ -123,6 +127,7 @@ void MetricsAggregator::Push(const FramePerformanceCounters& rawFpc) {
 
   acc.mSincePreviousFrame
     += pcm.ToDuration(mPreviousFrameEndTime, core.mEndFrameStop);
+  acc.mSinceFirstFrame = pcm.ToDuration(mFirstFrameEndTime, core.mEndFrameStop);
   mPreviousFrameEndTime = core.mEndFrameStop;
 }
 

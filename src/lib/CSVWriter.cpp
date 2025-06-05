@@ -268,15 +268,6 @@ CSVWriter::Write(BinaryLogReader reader, HANDLE out, size_t framesPerRow) {
   const auto pcm = reader.GetPerformanceCounterMath();
   Result ret;
 
-  auto columns = std::vector<Column> {BaseColumns.begin(), BaseColumns.end()};
-
-  // Include the UTF-8 Byte Order Mark, because Excel and Google Sheets use it
-  // as a magic value for UTF-8
-  win32::println(
-    out,
-    "\ufeffTime (µs),Time (UTC),Time (Local),{}",
-    GetColumnHeaders(columns));
-
   auto& frameCount = ret.mFrameCount;
   auto& flushCount = ret.mRowCount;
   MetricsAggregator acc {pcm};
@@ -303,6 +294,33 @@ CSVWriter::Write(BinaryLogReader reader, HANDLE out, size_t framesPerRow) {
 
   const auto tz = std::chrono::current_zone();
 
+  std::vector columns {
+    Column {
+      "Time",
+      &FrameMetrics::mSinceFirstFrame,
+    },
+    Column {
+      "Time (UTC)",
+      ColumnUnit::Opaque,
+      [ToUTC](const FrameMetrics& fm) {
+        return std::format("{:%FT%T}", ToUTC(fm.mLastEndFrameStop));
+      },
+    },
+    Column {
+      "Time (Local)",
+      ColumnUnit::Opaque,
+      [ToUTC, tz](const FrameMetrics& fm) {
+        return std::format(
+          "{:%FT%T}", std::chrono::zoned_time(tz, ToUTC(fm.mLastEndFrameStop)));
+      },
+    },
+  };
+  columns.append_range(BaseColumns);
+
+  // Include the UTF-8 Byte Order Mark, because Excel and Google Sheets use it
+  // as a magic value for UTF-8
+  win32::println(out, "\ufeff{}", GetColumnHeaders(columns));
+
   while (const auto frame = reader.GetNextFrame()) {
     const auto& core = frame->mCore;
     if (!firstFrameTime) {
@@ -319,16 +337,7 @@ CSVWriter::Write(BinaryLogReader reader, HANDLE out, size_t framesPerRow) {
       continue;
     };
 
-    const auto utc = ToUTC(core.mEndFrameStop);
-    const auto localTime = std::chrono::zoned_time(tz, utc);
-
-    win32::println(
-      out,
-      R"({},"{:%FT%T}","{:%FT%T}",{})",
-      pcm.ToDuration(*firstFrameTime, core.mEndFrameStop).count(),
-      utc,
-      localTime,
-      GetRow(columns, *row));
+    win32::println(out, "{}", GetRow(columns, *row));
     ++flushCount;
   }
 
