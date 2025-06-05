@@ -129,12 +129,10 @@ ApiLayerApi::LogFrameHookResult LoggingHook(Frame* frame) {
     gFrames, frame->mCore.mXrDisplayTime, &FrameData::mDisplayTime);
   if (it != gFrames.end()) {
     frame->mGpuPerformanceInformation = it->mGpuPerformanceInfo;
-    frame->mValidDataBits
-      |= static_cast<uint64_t>(FramePerformanceCounters::ValidDataBits::NVAPI);
+    frame->mValidDataBits |= FramePerformanceCounters::ValidDataBits::NVAPI;
     if (it->mEncoderInfo.mSessionCount > 0) {
       frame->mEncoders = it->mEncoderInfo;
-      frame->mValidDataBits |= static_cast<uint64_t>(
-        FramePerformanceCounters::ValidDataBits::NVEnc);
+      frame->mValidDataBits |= FramePerformanceCounters::ValidDataBits::NVEnc;
     }
     gFrames.erase(it);
   }

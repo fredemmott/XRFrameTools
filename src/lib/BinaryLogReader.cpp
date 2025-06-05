@@ -53,7 +53,7 @@ BinaryLogReader::BinaryLogReader(
     mProcessID(processID),
     mPerformanceCounterMath(pcm),
     mClockCalibration(cc) {
-  mProcesses[processID] = executable;
+  mProcesses[mProcessID] = executable;
 
   LARGE_INTEGER fileSize {};
   GetFileSizeEx(mFile.get(), &fileSize);
@@ -138,8 +138,36 @@ BinaryLogReader::GetNextFrame() noexcept {
     }
   }
 
+  while (header.mType == Type::ProcessInfo) {
+    if (header.mSize != sizeof(BinaryLog::ProcessInfo)) {
+      dprint("ProcessInfo size mismatch");
+      return std::nullopt;
+    }
+    DWORD bytesRead {};
+    BinaryLog::ProcessInfo info {};
+    if (!ReadFile(mFile.get(), &info, sizeof(info), &bytesRead, nullptr)) {
+      dprint("Failed to read ProcessInfo");
+      return std::nullopt;
+    }
+    if (bytesRead != sizeof(BinaryLog::ProcessInfo)) {
+      dprint("Failed to read sufficient bytes for ProcessInfo");
+      return std::nullopt;
+    }
+    mProcesses[info.mProcessID] = std::filesystem::path {
+      std::wstring_view {info.mPath, info.mPathLength}};
+    if (!ReadFile(mFile.get(), &header, sizeof(header), &bytesRead, nullptr)) {
+      return std::nullopt;
+    }
+    if (bytesRead != sizeof(BinaryLog::PacketHeader)) {
+      return std::nullopt;
+    }
+  }
+
   if (header.mType != Type::Core) {
-    dprint("Unexpected packet type {}", std::to_underlying(header.mType));
+    dprint(
+      "Unexpected packet type {} ({})",
+      std::to_underlying(header.mType),
+      magic_enum::enum_name(header.mType));
     return std::nullopt;
   }
 

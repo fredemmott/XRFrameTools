@@ -34,4 +34,6 @@ class MetricsAggregator final {
   LARGE_INTEGER mPreviousFrameEndTime {};
   LARGE_INTEGER mFirstFrameEndTime {};
   bool mHavePartialData = false;
+
+  std::vector<uint32_t> mEncoderSessionFrameCounts;
 };

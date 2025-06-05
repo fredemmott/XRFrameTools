@@ -129,6 +129,32 @@ void MetricsAggregator::Push(const FramePerformanceCounters& rawFpc) {
     += pcm.ToDuration(mPreviousFrameEndTime, core.mEndFrameStop);
   acc.mSinceFirstFrame = pcm.ToDuration(mFirstFrameEndTime, core.mEndFrameStop);
   mPreviousFrameEndTime = core.mEndFrameStop;
+
+  using Bits = FramePerformanceCounters::ValidDataBits;
+  if ((fpc.mValidDataBits & Bits::NVEnc) == Bits::NVEnc) {
+    const auto sessionCount = std::min<uint32_t>(
+      std::size(fpc.mEncoders.mSessions), fpc.mEncoders.mSessionCount);
+    if (sessionCount > mEncoderSessionFrameCounts.size()) {
+      mEncoderSessionFrameCounts.resize(fpc.mEncoders.mSessionCount);
+      acc.mEncoders.mSessionCount = sessionCount;
+    }
+    for (uint32_t i = 0; i < sessionCount; ++i) {
+      const auto oldFrameCount = mEncoderSessionFrameCounts[i]++;
+      const auto newFrameCount = oldFrameCount + 1;
+
+      const auto& in = fpc.mEncoders.mSessions.at(i);
+      auto& out = acc.mEncoders.mSessions.at(i);
+      out.mProcessID = in.mProcessID;
+      out.mAverageFPS
+        = ((static_cast<uint64_t>(out.mAverageFPS) * oldFrameCount)
+           + in.mAverageFPS)
+        / newFrameCount;
+      out.mAverageLatency
+        = ((static_cast<uint64_t>(out.mAverageLatency) * oldFrameCount)
+           + in.mAverageLatency)
+        / newFrameCount;
+    }
+  }
 }
 
 std::optional<FrameMetrics> MetricsAggregator::Flush() {
@@ -148,5 +174,6 @@ std::optional<FrameMetrics> MetricsAggregator::Flush() {
   acc.mRenderGpu /= n;
 
   mHavePartialData = false;
+  mEncoderSessionFrameCounts.clear();
   return std::exchange(mAccumulator, {});
 }

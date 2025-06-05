@@ -6,6 +6,8 @@
 
 #include <chrono>
 
+#include "FramePerformanceCounters.hpp"
+
 struct FrameMetrics {
   uint16_t mFrameCount {};
   std::chrono::microseconds mSincePreviousFrame {};
@@ -35,4 +37,6 @@ struct FrameMetrics {
   uint32_t mGpuGraphicsKHzMax {};
   uint32_t mGpuMemoryKHzMin {};
   uint32_t mGpuMemoryKHzMax {};
+
+  FramePerformanceCounters::EncoderInfo mEncoders;
 };

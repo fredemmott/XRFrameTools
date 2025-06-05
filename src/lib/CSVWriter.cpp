@@ -22,6 +22,7 @@ auto ECFromWin32(DWORD value) {
 
 enum class ColumnUnit {
   Counter,
+  Millis,
   Micros,
   Bytes,
   KHz,
@@ -276,7 +277,7 @@ CSVWriter::Write(BinaryLogReader reader, HANDLE out, size_t framesPerRow) {
 
   const auto ToUTC = [clockCalibration = reader.GetClockCalibration(),
                       pcm](const LARGE_INTEGER& time) {
-    // As the binary logging happens in its' own thread, it's possible for
+    // As the binary logging happens in its own thread, it's possible for
     // the first few threads to have an end time that is earlier than the
     // log start time
     const auto sinceCalibration = pcm.ToDurationAllowNegative(
@@ -316,6 +317,45 @@ CSVWriter::Write(BinaryLogReader reader, HANDLE out, size_t framesPerRow) {
     },
   };
   columns.append_range(BaseColumns);
+  const auto footer = reader.GetOrComputeFileFooter();
+  using Bits = FramePerformanceCounters::ValidDataBits;
+  if ((footer.mValidDataBits & Bits::NVEnc) == Bits::NVEnc) {
+    for (uint32_t i = 0;
+         i < std::min<uint32_t>(
+           footer.mMaxEncoderSessionCount,
+           FramePerformanceCounters {}.mEncoders.mSessions.size());
+         ++i) {
+      columns.append_range(
+        std::array {
+          Column {
+            std::format("NVEnc[{}] Process", i),
+            ColumnUnit::Opaque,
+            [i, &reader](const FrameMetrics& fm) {
+              const auto pid = fm.mEncoders.mSessions.at(i).mProcessID;
+              const auto path = reader.GetExecutablePath(pid);
+              if (path) {
+                return std::format("{} ({})", pid, path->filename().string());
+              }
+              return std::to_string(pid);
+            },
+          },
+          Column {
+            std::format("NVEnc[{}] FPS", i),
+            ColumnUnit::Counter,
+            [i](const FrameMetrics& fm) {
+              return fm.mEncoders.mSessions.at(i).mAverageFPS;
+            },
+          },
+          Column {
+            std::format("NVEnc[{}] Latency", i),
+            ColumnUnit::Counter,
+            [i](const FrameMetrics& fm) {
+              return fm.mEncoders.mSessions.at(i).mAverageLatency;
+            },
+          },
+        });
+    }
+  }
 
   // Include the UTF-8 Byte Order Mark, because Excel and Google Sheets use it
   // as a magic value for UTF-8

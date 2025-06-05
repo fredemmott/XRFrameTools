@@ -127,6 +127,7 @@ void BinaryLogWriter::OpenFile() {
 
   const auto binaryHeader = BinaryLog::FileHeader::Now();
   WriteFile(mFile.get(), &binaryHeader, sizeof(binaryHeader), nullptr, nullptr);
+  mLoggedProcesses.insert(binaryHeader.mProcessID);
 }
 
 uint64_t BinaryLogWriter::GetProduced() {
@@ -148,7 +149,7 @@ void BinaryLogWriter::LogProcess(DWORD pid) {
     return;
   }
 
-  BinaryLog::ProcessInfo packet {};
+  BinaryLog::ProcessInfo packet {.mProcessID = pid};
   DWORD pathLength {std::size(packet.mPath)};
   if (!QueryFullProcessImageNameW(
         process.get(), 0, packet.mPath, &pathLength)) {
@@ -164,12 +165,7 @@ void BinaryLogWriter::LogProcess(DWORD pid) {
     sizeof(packet),
   };
   WriteFile(mFile.get(), &Header, sizeof(Header), nullptr, nullptr);
-  WriteFile(
-    mFile.get(),
-    packet.mPath,
-    packet.mPathLength * sizeof(packet.mPath[0]),
-    nullptr,
-    nullptr);
+  WriteFile(mFile.get(), &packet, sizeof(packet), nullptr, nullptr);
 }
 
 void BinaryLogWriter::Run(std::stop_token tok) {
@@ -207,7 +203,7 @@ void BinaryLogWriter::Run(std::stop_token tok) {
 
     using FPC = FramePerformanceCounters;
 
-    static char buf[sizeof(FPC)];
+    static char buf[1024 * 1024];
     size_t offset {0};
     const auto appendBlob = [buf = &buf, &offset]<class T>(const T& data) {
       memcpy_s(&(*buf)[offset], sizeof(*buf) - offset, &data, sizeof(T));
@@ -241,11 +237,13 @@ void BinaryLogWriter::Run(std::stop_token tok) {
       appendPacket(
         PT::NVAPI, it.mGpuPerformanceInformation, FPC::ValidDataBits::NVAPI);
 
-      if (it.mValidDataBits & std::to_underlying(FPC::ValidDataBits::NVEnc)) {
+      if (
+        (it.mValidDataBits & FPC::ValidDataBits::NVEnc)
+        == FPC::ValidDataBits::NVEnc) {
         for (int j = 0; j < it.mEncoders.mSessionCount; ++j) {
           const auto& session = it.mEncoders.mSessions.at(j);
           this->LogProcess(session.mProcessID);
-          appendPacket(PT::NVEncSession, session);
+          appendPacket(PT::NVEncSession, session, FPC::ValidDataBits::NVEnc);
         }
       }
     }
