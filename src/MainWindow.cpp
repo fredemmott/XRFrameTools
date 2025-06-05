@@ -16,6 +16,7 @@
 
 #include "CSVWriter.hpp"
 #include "CheckHResult.hpp"
+#include "FrameMetricsStore.hpp"
 #include "ImGuiHelpers.hpp"
 #include "ImStackedAreaPlotter.hpp"
 #include "SHM.hpp"
@@ -211,13 +212,121 @@ void MainWindow::LogConversionControls() {
       return std::format(
         "{}hz", log.GetPerformanceCounterMath().GetResolution().QuadPart);
     });
-  ImGui::LabelText("Resolution", "%s", resolution.c_str());
+  ImGui::LabelText("Log resolution", "%s", resolution.c_str());
 
   const auto executable = SingleValue(
     mBinaryLogFiles, "no log files", "varied", [](const auto& log) {
       return log.GetExecutablePath().string();
     });
   ImGui::LabelText("Application path", "%s", executable.c_str());
+
+  enum class MetricsError {
+    NoLogFiles,
+    MissingData,
+    MetricsVary,
+  };
+  struct Metrics {
+    uint64_t mBytesPerFrame {};
+    uint64_t mBytesPerHour {};
+    uint32_t mAverageFPS;
+    constexpr bool operator==(const Metrics&) const noexcept = default;
+  };
+  const auto metrics = SingleValue(
+    mBinaryLogFiles,
+    std::unexpected {MetricsError::NoLogFiles},
+    std::unexpected {MetricsError::MetricsVary},
+    [](const auto& log) -> std::expected<Metrics, MetricsError> {
+      const auto footer = log.GetFileFooter();
+      if (!footer) {
+        return std::unexpected {MetricsError::MissingData};
+      }
+      if (!footer->mFrameCount) {
+        return std::unexpected {MetricsError::MissingData};
+      }
+
+      const auto pcm = log.GetPerformanceCounterMath();
+      const auto micros
+        = pcm.ToDuration(footer->mFirstEndFrameTime, footer->mLastEndFrameTime)
+            .count();
+      const auto seconds = micros / 1e6;
+      const auto hours = seconds / (60.0 * 60.0);
+
+      return Metrics {
+        .mBytesPerFrame = log.GetStreamSize() / footer->mFrameCount,
+        .mBytesPerHour
+        = static_cast<uint64_t>(std::llround(log.GetStreamSize() / hours)),
+        .mAverageFPS
+        = static_cast<uint32_t>(std::lround(footer->mFrameCount / seconds)),
+      };
+    });
+  if (metrics.has_value()) {
+    ImGui::LabelText(
+      "Average FPS", "%s", std::to_string(metrics->mAverageFPS).c_str());
+    ImGui::LabelText(
+      "Disk usage per frame",
+      "%s bytes",
+      std::to_string(metrics->mBytesPerFrame).c_str());
+    ImGui::LabelText(
+      "Disk usage per hour",
+      "%s MiB",
+      std::to_string(metrics->mBytesPerHour / (1024 * 1024)).c_str());
+  } else {
+    using enum MetricsError;
+    switch (metrics.error()) {
+      case NoLogFiles:
+        ImGui::LabelText("Average FPS", "no log files");
+        ImGui::LabelText("Disk usage per frame", "no log files");
+        ImGui::LabelText("Disk usage per hour", "no log files");
+        break;
+      case MissingData:
+        ImGui::LabelText("Average FPS", "unknown");
+        ImGui::LabelText("Disk usage per frame", "unknown");
+        ImGui::LabelText("Disk usage per hour", "unknown");
+        break;
+      case MetricsVary:
+        ImGui::LabelText("Average FPS", "varies");
+        ImGui::LabelText("Disk usage per frame", "varies");
+        ImGui::LabelText("Disk usage per hour", "varies");
+        break;
+    }
+  }
+
+  const auto validData = SingleValue(
+    mBinaryLogFiles,
+    std::unexpected {MetricsError::NoLogFiles},
+    std::unexpected {MetricsError::MetricsVary},
+    [](const auto& log) -> std::expected<uint64_t, MetricsError> {
+      const auto footer = log.GetFileFooter();
+      if (!footer) {
+        return std::unexpected {MetricsError::MissingData};
+      }
+
+      return footer->mFrameCount;
+    });
+  if (validData) {
+    std::string bits;
+    for (auto&& [bit, name]:
+         magic_enum::enum_entries<FramePerformanceCounters::ValidDataBits>()) {
+      if (((*validData) & bit) == bit) {
+        if (bits.empty()) {
+          bits = name;
+        } else {
+          bits = std::format("{}, {}", bits, name);
+        }
+      }
+    }
+    ImGui::LabelText("Data sources", "%s", bits.c_str());
+  } else {
+    using enum MetricsError;
+    switch (validData.error()) {
+      case NoLogFiles:
+        ImGui::LabelText("Data sources", "no log files");
+      case MissingData:
+        ImGui::LabelText("Data sources", "unknown");
+      case MetricsVary:
+        ImGui::LabelText("Data sources", "varied");
+    }
+  }
 
   if (ImGui::InputInt("Frames per CSV row (averaged)", &mCSVFramesPerRow)) {
     mCSVFramesPerRow
