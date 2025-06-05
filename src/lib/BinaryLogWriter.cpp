@@ -20,7 +20,25 @@ BinaryLogWriter::BinaryLogWriter() {
   mThread = std::jthread {std::bind_front(&BinaryLogWriter::Run, this)};
 }
 
-BinaryLogWriter::~BinaryLogWriter() = default;
+BinaryLogWriter::~BinaryLogWriter() {
+  mThread = {};
+  if (!mFile) {
+    return;
+  }
+  using namespace BinaryLog;
+  constexpr PacketHeader header {
+    PacketHeader::PacketType::FileFooter,
+    sizeof(FileFooter),
+  };
+  WriteFile(mFile.get(), &header, sizeof(header), nullptr, nullptr);
+  WriteFile(mFile.get(), &mFooter, sizeof(mFooter), nullptr, nullptr);
+  WriteFile(
+    mFile.get(),
+    &FileFooter::TrailingMagic,
+    std::size(FileFooter::TrailingMagic),
+    nullptr,
+    nullptr);
+}
 
 void BinaryLogWriter::LogFrame(const FramePerformanceCounters& fpc) {
   {
@@ -157,6 +175,9 @@ void BinaryLogWriter::Run(std::stop_token tok) {
 
     for (uint64_t i = mConsumed; i < produced; ++i) {
       const auto& it = mRingBuffer.at(i % RingBufferSize);
+
+      mFooter.Update(it);
+
       using PH = BinaryLog::PacketHeader;
       using PT = PH::PacketType;
 
@@ -165,8 +186,7 @@ void BinaryLogWriter::Run(std::stop_token tok) {
             const PT kind,
             const T& payload,
             const FPC::ValidDataBits neededBits = {}) {
-            const auto neededBitmask = std::to_underlying(neededBits);
-            if ((activeBits & neededBitmask) != neededBitmask) {
+            if ((activeBits & neededBits) != neededBits) {
               return;
             }
 

@@ -64,3 +64,10 @@ constexpr uint64_t& operator|=(
   lhs |= std::to_underlying(rhs);
   return lhs;
 }
+
+constexpr auto operator&(
+  const uint64_t lhs,
+  const FramePerformanceCounters::ValidDataBits rhs) {
+  return static_cast<FramePerformanceCounters::ValidDataBits>(
+    lhs & std::to_underlying(rhs));
+}

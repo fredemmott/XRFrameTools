@@ -51,6 +51,47 @@ BinaryLogReader::BinaryLogReader(
     mExecutable(executable),
     mPerformanceCounterMath(pcm),
     mClockCalibration(cc) {
+  LARGE_INTEGER fileSize {};
+  GetFileSizeEx(mFile.get(), &fileSize);
+  mFileSize = fileSize.QuadPart;
+
+  LARGE_INTEGER initialOffset {};
+  SetFilePointerEx(mFile.get(), {}, &initialOffset, FILE_CURRENT);
+  mStreamSize = mFileSize - initialOffset.QuadPart;
+
+  const auto resetPosition
+    = wil::scope_exit([offset = initialOffset, f = mFile.get()]() {
+        SetFilePointerEx(f, offset, nullptr, FILE_BEGIN);
+      });
+
+  using FileFooter = BinaryLog::FileFooter;
+  constexpr auto MagicLength = std::size(FileFooter::TrailingMagic);
+  constexpr auto FooterLength = sizeof(FileFooter) + MagicLength;
+  SetFilePointerEx(
+    mFile.get(),
+    {.QuadPart = -static_cast<int64_t>(FooterLength)},
+    nullptr,
+    FILE_END);
+  char footerBuf[FooterLength] {};
+  DWORD bytesRead {};
+  if (!ReadFile(mFile.get(), footerBuf, FooterLength, &bytesRead, nullptr)) {
+    return;
+  }
+  if (bytesRead != FooterLength) {
+    return;
+  }
+
+  if (
+    memcmp(
+      FileFooter::TrailingMagic,
+      footerBuf + sizeof(FileFooter),
+      sizeof(MagicLength))
+    != 0) {
+    dprint("Invalid file footer magic.");
+    return;
+  }
+  mFooter = *reinterpret_cast<FileFooter*>(footerBuf);
+  mStreamSize -= FooterLength;
 }
 
 BinaryLogReader::~BinaryLogReader() = default;
@@ -71,7 +112,7 @@ PerformanceCounterMath BinaryLogReader::GetPerformanceCounterMath()
 
 std::optional<FramePerformanceCounters>
 BinaryLogReader::GetNextFrame() noexcept {
-  if (!mFile) {
+  if (mEndOfFile || !mFile) {
     return std::nullopt;
   }
 
@@ -133,6 +174,9 @@ BinaryLogReader::GetNextFrame() noexcept {
     return std::nullopt;
   }
 
+  const auto updateFooter
+    = wil::scope_exit([this, &fpc]() { mComputedFooter.Update(fpc); });
+
   while (true) {
     header = {};
     DWORD bytesRead {};
@@ -154,6 +198,9 @@ BinaryLogReader::GetNextFrame() noexcept {
         return fpc;
       case Type::Core:
         return fpc;// next frame
+      case Type::FileFooter:
+        mEndOfFile = true;
+        return fpc;
       case Type::GpuTime:
         if (!readPacket(Type::GpuTime, &fpc.mRenderGpu)) {
           return fpc;
@@ -187,6 +234,46 @@ BinaryLogReader::GetNextFrame() noexcept {
 
 std::filesystem::path BinaryLogReader::GetExecutablePath() const noexcept {
   return mExecutable;
+}
+
+uint64_t BinaryLogReader::GetFileSize() const noexcept {
+  return mFileSize;
+}
+
+uint64_t BinaryLogReader::GetStreamSize() const noexcept {
+  return mStreamSize;
+}
+
+std::optional<BinaryLog::FileFooter> BinaryLogReader::GetFileFooter()
+  const noexcept {
+  return mFooter;
+}
+
+BinaryLog::FileFooter BinaryLogReader::GetOrComputeFileFooter() noexcept {
+  if (mFooter) {
+    return *mFooter;
+  }
+
+  if (mEndOfFile) {
+    mFooter = mComputedFooter;
+    return mComputedFooter;
+  }
+
+  dprint("Computing file footer as footer is missing");
+  const auto savedNextHeader = mNextPacketHeader;
+  LARGE_INTEGER position {};
+  SetFilePointerEx(mFile.get(), {}, &position, FILE_CURRENT);
+
+  while ((!mEndOfFile) && this->GetNextFrame()) {
+    // calling GetNextFrame is the purpose
+  }
+
+  mFooter = mComputedFooter;
+  mNextPacketHeader = savedNextHeader;
+  mEndOfFile = false;
+  SetFilePointerEx(mFile.get(), position, nullptr, FILE_BEGIN);
+
+  return mComputedFooter;
 }
 
 std::expected<BinaryLogReader, BinaryLogReader::OpenError>

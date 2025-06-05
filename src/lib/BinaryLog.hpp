@@ -22,6 +22,7 @@ namespace BinaryLog {
  *   1970-01-01 00:00:00Z.
  * 5. a contiguous stream of `PacketHeader` structs followed by a
  *   variable-length packet data
+ * 6. optionally, a file footer, followed by `FileFooter::Magic`
  *
  * There is no separator between sections or between
  * packets.
@@ -51,7 +52,7 @@ namespace BinaryLog {
  * HUMAN_READABLE_APP_NAME_AND_VERSION should not be parsed or validated by
  * any readers - it is purely for debugging
  */
-static constexpr auto Version = "2025-06-04#01";
+static constexpr auto Version = "2025-06-05#01";
 static constexpr auto Magic = "XRFrameTools binary log";
 
 inline auto GetVersionLine() noexcept {
@@ -95,6 +96,32 @@ struct FileHeader {
 // Assert it's the same size in all builds, especially 32- vs 64-bit
 static_assert(sizeof(FileHeader) == 24);
 
+struct FileFooter {
+  static constexpr char TrailingMagic[] = "CleanExit";
+
+  uint64_t mFrameCount {};
+  uint64_t mValidDataBits {};
+  LARGE_INTEGER mFirstEndFrameTime {};
+  LARGE_INTEGER mLastEndFrameTime {};
+  uint32_t mMaxEncoderSessionCount {};
+  uint32_t mReserved {};// force 64-bit size on 32-bit builds
+
+  void Update(const FramePerformanceCounters& fpc) {
+    ++mFrameCount;
+    mValidDataBits |= fpc.mValidDataBits;
+    if (!mFirstEndFrameTime.QuadPart) {
+      mFirstEndFrameTime = fpc.mCore.mEndFrameStart;
+    }
+    mLastEndFrameTime = fpc.mCore.mEndFrameStart;
+    using Bits = FramePerformanceCounters::ValidDataBits;
+    if ((fpc.mValidDataBits & Bits::NVEnc) == Bits::NVEnc) {
+      mMaxEncoderSessionCount
+        = std::max(mMaxEncoderSessionCount, fpc.mEncoders.mSessionCount);
+    }
+  }
+};
+static_assert(sizeof(FileFooter) == 40);
+
 struct PacketHeader {
   enum class PacketType : uint32_t {
     Invalid = 0,
@@ -103,6 +130,7 @@ struct PacketHeader {
     VRAM,
     NVAPI,
     NVEncSession,
+    FileFooter,
   };
   PacketType mType {};
   uint32_t mSize {};

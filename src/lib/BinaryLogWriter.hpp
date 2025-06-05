@@ -5,6 +5,7 @@
 #include <Windows.h>
 #include <wil/resource.h>
 
+#include <BinaryLog.hpp>
 #include <array>
 #include <mutex>
 #include <thread>
@@ -20,6 +21,8 @@ class BinaryLogWriter {
 
  private:
   wil::unique_hfile mFile;
+
+  BinaryLog::FileFooter mFooter {};
 
   static constexpr auto RingBufferSize = 128;
   std::array<FramePerformanceCounters, RingBufferSize> mRingBuffer;

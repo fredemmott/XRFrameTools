@@ -37,6 +37,19 @@ class BinaryLogReader {
   std::filesystem::path GetExecutablePath() const noexcept;
 
   [[nodiscard]]
+  uint64_t GetFileSize() const noexcept;
+
+  /// File size, excluding the size of the header and footer
+  [[nodiscard]]
+  uint64_t GetStreamSize() const noexcept;
+
+  [[nodiscard]]
+  std::optional<BinaryLog::FileFooter> GetFileFooter() const noexcept;
+
+  [[nodiscard]]
+  BinaryLog::FileFooter GetOrComputeFileFooter() noexcept;
+
+  [[nodiscard]]
   std::optional<FramePerformanceCounters> GetNextFrame() noexcept;
 
   [[nodiscard]]
@@ -53,6 +66,7 @@ class BinaryLogReader {
       UnsupportedCompression,
     };
 
+    [[nodiscard]]
     Code GetCode() const noexcept {
       return mCode;
     }
@@ -86,7 +100,14 @@ class BinaryLogReader {
   std::filesystem::path mExecutable;
   PerformanceCounterMath mPerformanceCounterMath;
   ClockCalibration mClockCalibration {};
+
+  uint64_t mFileSize {};
+  uint64_t mStreamSize {};// File size, excluding header and footer
+  std::optional<BinaryLog::FileFooter> mFooter {};
+
+  BinaryLog::FileFooter mComputedFooter {};
   BinaryLog::PacketHeader mNextPacketHeader {};
+  bool mEndOfFile {false};
 
   BinaryLogReader(
     const std::filesystem::path& path,
