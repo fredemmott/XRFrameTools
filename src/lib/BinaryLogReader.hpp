@@ -6,6 +6,7 @@
 
 #include <expected>
 #include <filesystem>
+#include <unordered_map>
 #include <variant>
 
 #include "BinaryLog.hpp"
@@ -35,6 +36,13 @@ class BinaryLogReader {
 
   [[nodiscard]]
   std::filesystem::path GetExecutablePath() const noexcept;
+
+  [[nodiscard]]
+  DWORD GetProcessID() const noexcept;
+
+  [[nodiscard]]
+  std::optional<std::filesystem::path> GetExecutablePath(
+    uint32_t pid) const noexcept;
 
   [[nodiscard]]
   uint64_t GetFileSize() const noexcept;
@@ -98,8 +106,10 @@ class BinaryLogReader {
   std::filesystem::path mLogFilePath;
   wil::unique_hfile mFile;
   std::filesystem::path mExecutable;
+  uint32_t mProcessID;
   PerformanceCounterMath mPerformanceCounterMath;
   ClockCalibration mClockCalibration {};
+  std::unordered_map<uint32_t, std::filesystem::path> mProcesses;
 
   uint64_t mFileSize {};
   uint64_t mStreamSize {};// File size, excluding header and footer
@@ -113,6 +123,7 @@ class BinaryLogReader {
     const std::filesystem::path& path,
     wil::unique_hfile,
     const std::filesystem::path& executable,
+    uint32_t processID,
     PerformanceCounterMath,
     ClockCalibration);
 

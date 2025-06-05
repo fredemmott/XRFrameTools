@@ -44,13 +44,17 @@ BinaryLogReader::BinaryLogReader(
   const std::filesystem::path& logFilePath,
   wil::unique_hfile file,
   const std::filesystem::path& executable,
+  uint32_t processID,
   PerformanceCounterMath pcm,
   ClockCalibration cc)
   : mLogFilePath(logFilePath),
     mFile(std::move(file)),
     mExecutable(executable),
+    mProcessID(processID),
     mPerformanceCounterMath(pcm),
     mClockCalibration(cc) {
+  mProcesses[processID] = executable;
+
   LARGE_INTEGER fileSize {};
   GetFileSizeEx(mFile.get(), &fileSize);
   mFileSize = fileSize.QuadPart;
@@ -196,11 +200,11 @@ BinaryLogReader::GetNextFrame() noexcept {
       case Type::Invalid:
         dprint("Binary log contains packet with 'Invalid' type");
         return fpc;
-      case Type::Core:
-        return fpc;// next frame
       case Type::FileFooter:
         mEndOfFile = true;
         return fpc;
+      case Type::Core:
+        return fpc;// next frame
       case Type::GpuTime:
         if (!readPacket(Type::GpuTime, &fpc.mRenderGpu)) {
           return fpc;
@@ -228,12 +232,38 @@ BinaryLogReader::GetNextFrame() noexcept {
         fpc.mValidDataBits |= FramePerformanceCounters::ValidDataBits::NVEnc;
         break;
       }
+      case Type::ProcessInfo: {
+        BinaryLog::ProcessInfo info {};
+        if (!readPacket(Type::ProcessInfo, &info)) {
+          return fpc;
+        }
+        if (info.mProcessID != mProcessID) {
+          mProcesses[info.mProcessID]
+            = std::filesystem::path {std::wstring_view {
+              info.mPath,
+              info.mPathLength,
+            }};
+        }
+        break;
+      }
     }
   }
 }
 
 std::filesystem::path BinaryLogReader::GetExecutablePath() const noexcept {
   return mExecutable;
+}
+
+DWORD BinaryLogReader::GetProcessID() const noexcept {
+  return mProcessID;
+}
+
+std::optional<std::filesystem::path> BinaryLogReader::GetExecutablePath(
+  uint32_t pid) const noexcept {
+  if (!mProcesses.contains(pid)) {
+    return std::nullopt;
+  }
+  return mProcesses.at(pid);
 }
 
 uint64_t BinaryLogReader::GetFileSize() const noexcept {
@@ -349,6 +379,7 @@ BinaryLogReader::Create(const std::filesystem::path& path) {
     path,
     std::move(file),
     executable,
+    binaryHeader.mProcessID,
     PerformanceCounterMath {binaryHeader.mQueryPerformanceFrequency},
     ClockCalibration {
       .mQueryPerformanceCounter = binaryHeader.mQueryPerformanceCounter,

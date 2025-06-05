@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <format>
 #include <functional>
+#include <ranges>
 
 #include "BinaryLog.hpp"
 #include "FramePerformanceCounters.hpp"
@@ -25,6 +26,10 @@ BinaryLogWriter::~BinaryLogWriter() {
   if (!mFile) {
     return;
   }
+  this->WriteFooter();
+}
+
+void BinaryLogWriter::WriteFooter() {
   using namespace BinaryLog;
   constexpr PacketHeader header {
     PacketHeader::PacketType::FileFooter,
@@ -131,6 +136,42 @@ uint64_t BinaryLogWriter::GetProduced() {
   return mProduced;
 }
 
+void BinaryLogWriter::LogProcess(DWORD pid) {
+  if (mLoggedProcesses.contains(pid)) [[likely]] {
+    return;
+  }
+  mLoggedProcesses.insert(pid);
+
+  wil::unique_process_handle process {
+    OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid)};
+  if (!process) {
+    return;
+  }
+
+  BinaryLog::ProcessInfo packet {};
+  DWORD pathLength {std::size(packet.mPath)};
+  if (!QueryFullProcessImageNameW(
+        process.get(), 0, packet.mPath, &pathLength)) {
+    return;
+  }
+  if (!pathLength) {
+    return;
+  }
+  packet.mPathLength = pathLength;
+
+  constexpr BinaryLog::PacketHeader Header {
+    BinaryLog::PacketHeader::PacketType::ProcessInfo,
+    sizeof(packet),
+  };
+  WriteFile(mFile.get(), &Header, sizeof(Header), nullptr, nullptr);
+  WriteFile(
+    mFile.get(),
+    packet.mPath,
+    packet.mPathLength * sizeof(packet.mPath[0]),
+    nullptr,
+    nullptr);
+}
+
 void BinaryLogWriter::Run(std::stop_token tok) {
   SetThreadDescription(GetCurrentThread(), L"XRFrameTools Binary Logger");
   dprint("starting binary logger thread");
@@ -202,7 +243,9 @@ void BinaryLogWriter::Run(std::stop_token tok) {
 
       if (it.mValidDataBits & std::to_underlying(FPC::ValidDataBits::NVEnc)) {
         for (int j = 0; j < it.mEncoders.mSessionCount; ++j) {
-          appendPacket(PT::NVEncSession, it.mEncoders.mSessions.at(i));
+          const auto& session = it.mEncoders.mSessions.at(j);
+          this->LogProcess(session.mProcessID);
+          appendPacket(PT::NVEncSession, session);
         }
       }
     }

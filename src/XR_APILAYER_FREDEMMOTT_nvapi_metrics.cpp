@@ -197,6 +197,7 @@ XrResult hooked_xrEndFrame(
       retEncoder.mSessions.at(i) = {
         .mAverageFPS = it.averageEncodeFps,
         .mAverageLatency = it.averageEncodeLatency,
+        .mProcessID = it.processId,
       };
     }
   }

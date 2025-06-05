@@ -52,7 +52,7 @@ namespace BinaryLog {
  * HUMAN_READABLE_APP_NAME_AND_VERSION should not be parsed or validated by
  * any readers - it is purely for debugging
  */
-static constexpr auto Version = "2025-06-05#01";
+static constexpr auto Version = "2025-06-05#02";
 static constexpr auto Magic = "XRFrameTools binary log";
 
 inline auto GetVersionLine() noexcept {
@@ -64,11 +64,14 @@ struct FileHeader {
   LARGE_INTEGER mQueryPerformanceFrequency {};
   LARGE_INTEGER mQueryPerformanceCounter {};
   uint64_t mMicrosecondsSinceEpoch {};
+  uint32_t mProcessID {};
+  uint32_t mReserved {/* make struct identical on 32-bit and 64-bit builds */};
 
   static FileHeader Now() {
     FileHeader ret {};
     QueryPerformanceFrequency(&ret.mQueryPerformanceFrequency);
     QueryPerformanceCounter(&ret.mQueryPerformanceCounter);
+    ret.mProcessID = GetCurrentProcessId();
 
     static_assert(
       __cpp_lib_chrono >= 201907L,
@@ -94,7 +97,7 @@ struct FileHeader {
   FileHeader() = default;
 };
 // Assert it's the same size in all builds, especially 32- vs 64-bit
-static_assert(sizeof(FileHeader) == 24);
+static_assert(sizeof(FileHeader) == 32);
 
 struct FileFooter {
   static constexpr char TrailingMagic[] = "CleanExit";
@@ -130,6 +133,7 @@ struct PacketHeader {
     VRAM,
     NVAPI,
     NVEncSession,
+    ProcessInfo,
     FileFooter,
   };
   PacketType mType {};
@@ -144,4 +148,10 @@ struct PacketHeader {
 };
 static_assert(sizeof(PacketHeader) == 8);
 
+struct ProcessInfo {
+  wchar_t mPath[64 * 1024] {};
+  uint32_t mPathLength {};
+  uint32_t mProcessID {};
+};
+static_assert(sizeof(ProcessInfo) == 131080);
 };// namespace BinaryLog

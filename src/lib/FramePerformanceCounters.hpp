@@ -9,7 +9,7 @@
 
 struct FramePerformanceCounters {
   // Used for BinLog
-  static constexpr auto Version = "2025-06-04#02";
+  static constexpr auto Version = "2025-06-05#01";
 
   enum class ValidDataBits : uint64_t {
     GpuTime = 1 << 0,
@@ -48,6 +48,8 @@ struct FramePerformanceCounters {
     struct Session {
       uint32_t mAverageFPS {};
       uint32_t mAverageLatency {};
+      uint32_t mProcessID {};
+      uint32_t mReserved {/* padding for 32-bit builds */};
     };
     std::array<Session, 4> mSessions {};
     uint32_t mSessionCount {};
@@ -56,7 +58,7 @@ struct FramePerformanceCounters {
 
 // Increase this if you add additional members; this assertion is here to make
 // sure the struct is the same size in 32-bit and 64-bit builds
-static_assert(sizeof(FramePerformanceCounters) == 160);
+static_assert(sizeof(FramePerformanceCounters) == 192);
 
 constexpr uint64_t& operator|=(
   uint64_t& lhs,

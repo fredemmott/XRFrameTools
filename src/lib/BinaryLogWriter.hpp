@@ -9,6 +9,7 @@
 #include <array>
 #include <mutex>
 #include <thread>
+#include <unordered_set>
 
 #include "FramePerformanceCounters.hpp"
 
@@ -34,7 +35,11 @@ class BinaryLogWriter {
   wil::unique_handle mWakeEvent {CreateEventW(nullptr, FALSE, FALSE, nullptr)};
   std::jthread mThread;
 
+  std::unordered_set<DWORD> mLoggedProcesses;
+
   void OpenFile();
   void Run(std::stop_token);
   uint64_t GetProduced();
+  void LogProcess(DWORD pid);
+  void WriteFooter();
 };
