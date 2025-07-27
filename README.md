@@ -265,3 +265,19 @@ For accurate presentation of this level of detail, you will probably want to:
   XRFrameTools uses
 - aggregate by thread ID
 
+## My anti-virus says it found something, what do I do?
+
+Report to your anti-virus vendor as a false positive.
+
+I do not spend my free time (and in some cases, money) trying to fix bugs in other people's software, which this practically always is.
+
+## I'm a security researcher and actually found a problem, what do I do?
+
+If you have reasons beyond:
+
+- an antivirus says it found something (assume false positive unless evidence to the contrary)
+- VirusTotal says an antivirus found something (the same, but multiplied)
+- The autoupdater can download and run code from the internet (yes, it's an autoupdater)
+- The autoupdater contains some bad/suspicious words (this is the dictionary for Google's Brotli compression, found in appendix A of RFC 7932)
+
+Please open a GitHub issue with details.
