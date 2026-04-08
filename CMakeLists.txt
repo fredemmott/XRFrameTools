@@ -37,6 +37,23 @@ option(IS_STABLE_RELEASE "Whether or not we're building a stable build" OFF)
 # While the JSON field is documented as a string, it should match the `uint32_t` field of `XrApiLayerProperties`
 math(EXPR LAYER_IMPLEMENTATION_VERSION "(${CMAKE_PROJECT_VERSION_MAJOR} << 24) | (${CMAKE_PROJECT_VERSION_MINOR} << 8) | ${CMAKE_PROJECT_VERSION_PATCH}")
 
+if (MSVC)
+  # Apply the standard `Release` size reductions to `RelWithDebInfo` and other build types
+  add_link_options(
+    # Incremental linking makes rebuilding quicker, but is a big size increase.
+    # Don't do this in release builds.
+    #
+    # - we generally don't want to rebuild release builds with small changes
+    # - smaller binaries are good
+    # - as well as the direct increase, incremental linking breaks the SizeBench tool
+    "$<$<NOT:$<CONFIG:Debug>>:/INCREMENTAL:NO>"
+    # COMDAT folding; drops off another big chunk
+    "$<$<NOT:$<CONFIG:Debug>>:/OPT:ICF>"
+    # Remove unused data and variables
+    "$<$<NOT:$<CONFIG:Debug>>:/OPT:REF>"
+  )
+endif ()
+
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 math(EXPR BUILD_BITNESS "${CMAKE_SIZEOF_VOID_P} * 8")
 block(PROPAGATE BUILD_UI)
