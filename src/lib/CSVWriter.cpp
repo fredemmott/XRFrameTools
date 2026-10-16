@@ -292,7 +292,14 @@ CSVWriter::Write(BinaryLogReader reader, HANDLE out, size_t framesPerRow) {
       std::chrono::system_clock::time_point(sinceEpoch));
   };
 
-  const auto tz = std::chrono::current_zone();
+  const auto tz = [] {
+    try {
+      return std::chrono::current_zone();
+    } catch (const std::exception&) {
+      // https://github.com/microsoft/STL/issues/6490
+      return std::chrono::get_tzdb().locate_zone("Etc/UTC");
+    }
+  }();
 
   std::vector columns {
     Column {

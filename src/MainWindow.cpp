@@ -121,8 +121,16 @@ void MainWindow::LoggingControls() {
     default: {
       const auto timestamp
         = std::chrono::system_clock::time_point {std::chrono::seconds {value}};
+      const auto current_zone = [] {
+        try {
+          return std::chrono::current_zone();
+        } catch (const std::exception&) {
+          // https://github.com/microsoft/STL/issues/6490
+          return std::chrono::get_tzdb().locate_zone("Etc/UTC");
+        }
+      }();
       const auto zoned = std::chrono::zoned_time(
-        std::chrono::current_zone(),
+        current_zone,
         std::chrono::time_point_cast<std::chrono::seconds>(timestamp));
       const auto now = std::chrono::system_clock::now();
       if (timestamp > now) {
