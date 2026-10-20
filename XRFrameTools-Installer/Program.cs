@@ -96,6 +96,7 @@ void SignProject(ManagedProject managedProject, string? s, string? timestampServ
 {
     if (s != null)
     {
+        Compiler.AutoGeneration.PreferBatchSigning = true;
         managedProject.DigitalSignature = new DigitalSignature
         {
             CertificateId = s,
