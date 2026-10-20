@@ -22,9 +22,9 @@ class MetricsAggregator final {
   [[nodiscard]] std::optional<FrameMetrics> Flush();
 
   void Reset() {
-    auto pcm = mPerformanceCounterMath;
+    const auto pcm = mPerformanceCounterMath;
     this->~MetricsAggregator();
-    new (this) MetricsAggregator(mPerformanceCounterMath);
+    new (this) MetricsAggregator(pcm);
   }
 
  private:
